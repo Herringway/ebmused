@@ -4,6 +4,7 @@ import core.stdc.string;
 import core.stdc.errno;
 import core.sys.windows.windows;
 import std.string;
+import std.stdio;
 import ebmusv2;
 import misc;
 import loadrom;
@@ -14,7 +15,7 @@ extern(C):
 __gshared char*[NUM_SONGS] bgm_title;
 __gshared BOOL metadata_changed;
 __gshared private char[MAX_PATH+8] md_filename;
-__gshared FILE *orig_rom;
+__gshared File orig_rom;
 __gshared char *orig_rom_filename;
 __gshared int orig_rom_offset;
 
@@ -212,19 +213,21 @@ immutable char*[NUM_SONGS] bgm_orig_title = [
 	"Giygas - Weakening (Quiet)",
 ];
 
-BOOL open_orig_rom(char *filename) nothrow {
-	FILE *f = fopen(filename, "rb");
-	if (!f) {
-		MessageBox2(strerror(errno).fromStringz, filename.fromStringz, MB_ICONEXCLAMATION);
+BOOL open_orig_rom(char *filename) {
+	File f;
+	try {
+		f = File(filename.fromStringz, "rb");
+	} catch (Exception e) {
+		MessageBox2(e.msg, filename.fromStringz, MB_ICONEXCLAMATION);
 		return FALSE;
 	}
-	long size = filelength(f);
+	long size = f.size;
 	if (size != rom_size) {
 		MessageBox2("File is not same size as current ROM", filename.fromStringz, MB_ICONEXCLAMATION);
-		fclose(f);
+		f.close();
 		return FALSE;
 	}
-	if (orig_rom) fclose(orig_rom);
+	if (orig_rom.isOpen) orig_rom.close();
 	orig_rom = f;
 	orig_rom_offset = size & 0x200;
 	free(orig_rom_filename);
@@ -256,7 +259,11 @@ static assert(MAX_TITLE_LEN < MAX_PATH);
 			fgetc(mf);
 			fgets(&buf[0], MAX_PATH, mf);
 			{ char *p = strchr(&buf[0], '\n'); if (p) *p = '\0'; }
-			open_orig_rom(&buf[0]);
+			try {
+				open_orig_rom(&buf[0]);
+			} catch (Exception e) {
+				MessageBox2(e.msg, "Unable to load rom", MB_ICONERROR);
+			}
 		} else if (c == 'R') {
 			int start, end;
 			fscanf(mf, "%X %X", cast(uint*)&start, cast(uint*)&end);
@@ -307,7 +314,7 @@ void save_metadata() nothrow {
 }
 
 void free_metadata() nothrow {
-	if (orig_rom) { fclose(orig_rom); orig_rom = NULL; }
+	if (orig_rom.isOpen) { try { orig_rom.close(); } catch (Exception) {} }
 	free(orig_rom_filename);
 	orig_rom_filename = NULL;
 	for (int i = 0; i < NUM_SONGS; i++)

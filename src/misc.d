@@ -4,6 +4,7 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
 import std.string;
+import std.stdio;
 import ebmusv2;
 import main;
 
@@ -112,4 +113,20 @@ char* strlwr(char* str) nothrow {
 		*p = cast(char)tolower(*p);
 	}
 	return str;
+}
+
+char getc(ref File file) nothrow {
+	char[1] buf;
+	try {
+		file.rawRead(buf[]);
+	} catch (Exception) {}
+	return buf[0];
+}
+
+ushort getw(ref File file) nothrow {
+	ushort[1] buf;
+	try {
+		file.rawRead(buf[]);
+	} catch (Exception) {}
+	return buf[0];
 }

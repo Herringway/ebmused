@@ -65,12 +65,16 @@ pack *load_pack(int pack_) nothrow {
 		mp.blocks = cast(block*)memcpy(malloc(mp.block_count * block.sizeof),
 			rp.blocks, mp.block_count * block.sizeof);
 		block *b = mp.blocks;
-		fseek(rom, mp.start_address - 0xC00000 + rom_offset, SEEK_SET);
-		for (int i = 0; i < mp.block_count; i++) {
-			fseek(rom, 4, SEEK_CUR);
-			b.data = cast(ubyte*)malloc(b.size);
-			fread(b.data, b.size, 1, rom);
-			b++;
+		try {
+			rom.seek(mp.start_address - 0xC00000 + rom_offset, SEEK_SET);
+			for (int i = 0; i < mp.block_count; i++) {
+				rom.seek(4, SEEK_CUR);
+				b.data = cast(ubyte*)malloc(b.size);
+				rom.rawRead(b.data[0 .. b.size]);
+				b++;
+			}
+		} catch (Exception e) {
+			MessageBox2(e.msg, "Error loading pack", MB_ICONERROR);
 		}
 		mp.status |= IPACK_INMEM;
 	}
@@ -195,7 +199,7 @@ BOOL save_pack(int pack_) nothrow {
 	if (!(p.status & IPACK_CHANGED))
 		return FALSE;
 
-	if (!orig_rom) {
+	if (!orig_rom.isOpen) {
 		MessageBox2("Before saving a pack, the original ROM file needs to be specified so that it can be used to ensure that no unused remnants of previous versions of the pack are left in the file in such a way that they would increase the patch size.", "Save", 48);
 		return FALSE;
 	}
@@ -218,33 +222,32 @@ BOOL save_pack(int pack_) nothrow {
 	int old_size = calc_pack_size(rp);
 	BYTE *filler = cast(BYTE*)malloc(old_size);
 
-	fseek(orig_rom, old_start - 0xC00000 + orig_rom_offset, SEEK_SET);
-	if (!fread(filler, old_size, 1, orig_rom)) {
-error:
-		MessageBox2(strerror(errno).fromStringz, "Save", 16);
+	try {
+		orig_rom.seek(old_start - 0xC00000 + orig_rom_offset, SEEK_SET);
+		orig_rom.rawRead(filler[0 .. old_size]);
+		rom.seek(old_start - 0xC00000 + rom_offset, SEEK_SET);
+		rom.rawWrite(filler[0 .. old_size]);
+	} catch (Exception e) {
+		MessageBox2(e.msg, "Save", 16);
 		return FALSE;
 	}
-	fseek(rom, old_start - 0xC00000 + rom_offset, SEEK_SET);
-	if (!fwrite(filler, old_size, 1, rom))
-		goto error;
 	free(filler);
+	try {
+		rom.seek(PACK_POINTER_TABLE + rom_offset + 3*pack_, SEEK_SET);
+		rom.rawWrite([cast(ubyte)(p.start_address >> 16), cast(ubyte)p.start_address, cast(ubyte)(p.start_address >> 8)]);
 
-	fseek(rom, PACK_POINTER_TABLE + rom_offset + 3*pack_, SEEK_SET);
-	fputc(p.start_address >> 16, rom);
-	fputc(p.start_address, rom);
-	fputc(p.start_address >> 8, rom);
-
-	fseek(rom, p.start_address - 0xC00000 + rom_offset, SEEK_SET);
-	for (int i = 0; i < p.block_count; i++) {
-		block *b = &p.blocks[i];
-		if (!fwrite(b, 4, 1, rom))
-			goto error;
-		if (!fwrite(b.data, b.size, 1, rom))
-			goto error;
+		rom.seek(p.start_address - 0xC00000 + rom_offset, SEEK_SET);
+		for (int i = 0; i < p.block_count; i++) {
+			block *b = &p.blocks[i];
+			rom.rawWrite([b.size, b.spc_address]);
+			rom.rawWrite(b.data[0 .. b.size]);
+		}
+		rom.rawWrite([cast(ushort)0]);
+		rom.flush();
+	} catch (Exception e) {
+		MessageBox2(e.msg, "Save", 16);
+		return FALSE;
 	}
-	if (!fwrite("\0".ptr, 2, 1, rom))
-		goto error;
-	fflush(rom);
 
 	p.status &= ~IPACK_CHANGED;
 

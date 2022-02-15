@@ -124,14 +124,18 @@ void load_instruments() nothrow {
 		int p = packs_loaded[i];
 		if (p >= NUM_PACKS) continue;
 		int addr, size;
-		fseek(rom, rom_packs[p].start_address - 0xC00000 + rom_offset, 0);
-		while ((size = fgetw(rom)) != 0) {
-			addr = fgetw(rom);
-			if (size + addr >= 0x10000) {
-				MessageBox2("Invalid SPC block", "Error loading instruments", MB_ICONERROR);
-				return;
+		try {
+			rom.seek(rom_packs[p].start_address - 0xC00000 + rom_offset, 0);
+			while ((size = rom.getw()) != 0) {
+				addr = rom.getw();
+				if (size + addr >= 0x10000) {
+					MessageBox2("Invalid SPC block", "Error loading instruments", MB_ICONERROR);
+					return;
+				}
+				rom.rawRead(spc[addr .. addr + size]);
 			}
-			fread(&spc[addr], size, 1, rom);
+		} catch (Exception e) {
+			MessageBox2(e.msg, "Error reading file", MB_ICONERROR);
 		}
 	}
 	decode_samples(&spc[0x6C00]);
@@ -218,7 +222,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		WORD id = LOWORD(wParam), action = HIWORD(wParam);
 		switch (id) {
 		case IDC_ORIG_ROM_FILE:
-			if (!rom) break;
+			if (!rom.isOpen) break;
 			if (get_original_rom())
 				SetWindowTextA(cast(HWND)lParam, orig_rom_filename);
 			break;
@@ -252,18 +256,18 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			}
 			int new_spc_address = GetDlgItemHex(hWnd, IDC_BGM_SPCADDR);
 			if (new_spc_address < 0 || new_spc_address > 0xFFFF) break;
-
-			fseek(rom, BGM_PACK_TABLE + rom_offset + 3 * selected_bgm, SEEK_SET);
-			if (!fwrite(&new_pack_used[0], 3, 1, rom)) {
-write_error:	MessageBox2(strerror(errno).fromStringz, "Save", MB_ICONERROR);
+			try {
+				rom.seek(BGM_PACK_TABLE + rom_offset + 3 * selected_bgm, SEEK_SET);
+				rom.rawWrite(new_pack_used[]);
+				memcpy(&pack_used[selected_bgm], &new_pack_used[0], 3);
+				rom.seek(SONG_POINTER_TABLE + rom_offset + 2 * selected_bgm, SEEK_SET);
+				rom.rawWrite([cast(ushort)new_spc_address]);
+				rom.flush();
+			} catch (Exception e) {
+				MessageBox2(e.msg, "Save", MB_ICONERROR);
 				break;
 			}
-			memcpy(&pack_used[selected_bgm], &new_pack_used[0], 3);
-			fseek(rom, SONG_POINTER_TABLE + rom_offset + 2 * selected_bgm, SEEK_SET);
-			if (!fwrite(&new_spc_address, 2, 1, rom))
-				goto write_error;
 			song_address[selected_bgm] = cast(ushort)new_spc_address;
-			fflush(rom);
 			MessageBox2(assumeWontThrow(sformat(buf[], "Info for BGM %02X saved!", selected_bgm + 1)), "Song Table Updated", MB_OK);
 			break;
 		}

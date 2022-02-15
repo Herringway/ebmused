@@ -6,6 +6,7 @@ import core.sys.windows.windows;
 import std.exception;
 import std.format;
 import std.string;
+import std.stdio;
 import ebmusv2;
 import id;
 import structs;
@@ -21,7 +22,7 @@ import song;
 
 extern(C):
 
-__gshared FILE *rom;
+__gshared File rom;
 __gshared int rom_size;
 __gshared int rom_offset;
 __gshared char *rom_filename;
@@ -63,7 +64,7 @@ immutable BYTE[3] rom_menu_cmds = [
 ];
 
 BOOL close_rom() nothrow {
-	if (!rom) return TRUE;
+	if (!rom.isOpen) return TRUE;
 
 	save_cur_song_to_pack();
 	int unsaved_packs = 0;
@@ -84,9 +85,9 @@ BOOL close_rom() nothrow {
 			return FALSE;
 	}
 	save_metadata();
-
-	fclose(rom);
-	rom = NULL;
+	try {
+		rom.close();
+	} catch (Exception) {}
 	free(rom_filename);
 	rom_filename = NULL;
 	enable_menu_items(&rom_menu_cmds[0], MF_GRAYED);
@@ -106,21 +107,23 @@ BOOL close_rom() nothrow {
 	return TRUE;
 }
 
-BOOL open_rom(char *filename, BOOL readonly) nothrow {
-	FILE *f = fopen(filename, readonly ? "rb" : "r+b");
-	if (!f) {
-		MessageBox2(strerror(errno).fromStringz, "Can't open file", MB_ICONEXCLAMATION);
+BOOL open_rom(char *filename, BOOL readonly) {
+	File f;
+	try {
+		f = File(filename.fromStringz, readonly ? "rb" : "r+b");
+	} catch (Exception e) {
+		MessageBox2(e.msg, "Can't open file", MB_ICONEXCLAMATION);
 		return FALSE;
 	}
 
 	if (!close_rom())
 		return FALSE;
 
-	rom_size = filelength(f);
+	rom_size = cast(int)f.size;
 	rom_offset = rom_size & 0x200;
 	if (rom_size < 0x300000) {
 		MessageBox2("An EarthBound ROM must be at least 3 MB", "Can't open file", MB_ICONEXCLAMATION);
-		fclose(f);
+		f.close();
 		return FALSE;
 	}
 	rom = f;
@@ -136,17 +139,17 @@ BOOL open_rom(char *filename, BOOL readonly) nothrow {
 	SetWindowTextA(hwndMain, title);
 	free(title);
 
-	fseek(f, BGM_PACK_TABLE + rom_offset, SEEK_SET);
-	fread(&pack_used[0][0], NUM_SONGS, 3, f);
+	f.seek(BGM_PACK_TABLE + rom_offset, SEEK_SET);
+	f.rawRead(pack_used[]);
 	// pack pointer table follows immediately after
 	for (int i = 0; i < NUM_PACKS; i++) {
-		int addr = fgetc(f) << 16;
-		addr |= fgetw(f);
+		int addr = f.getc() << 16;
+		addr |= f.getw();
 		rom_packs[i].start_address = addr;
 	}
 
-	fseek(f, SONG_POINTER_TABLE + rom_offset, SEEK_SET);
-	fread(&song_address[0], NUM_SONGS, 2, f);
+	f.seek(SONG_POINTER_TABLE + rom_offset, SEEK_SET);
+	f.rawRead(song_address[]);
 
 	init_crc();
 	for (int i = 0; i < NUM_PACKS; i++) {
@@ -163,10 +166,10 @@ BOOL open_rom(char *filename, BOOL readonly) nothrow {
 			goto bad_pointer;
 		}
 
-		fseek(f, offset, SEEK_SET);
+		f.seek(offset, SEEK_SET);
 		crc = ~0;
-		while ((size = fgetw(f)) > 0) {
-			int spc_addr = fgetw(f);
+		while ((size = f.getw()) > 0) {
+			int spc_addr = f.getw();
 			if (spc_addr + size > 0x10000) { valid = FALSE; break; }
 			offset += 4 + size;
 			if (offset > rom_size) { valid = FALSE; break; }
@@ -183,7 +186,7 @@ BOOL open_rom(char *filename, BOOL readonly) nothrow {
 				fseek(f, back, SEEK_SET);
 			}*/
 
-			fread(&spc[spc_addr], size, 1, f);
+			f.rawRead(spc[spc_addr .. spc_addr + size]);
 			crc = update_crc(crc, cast(BYTE *)&size, 2);
 			crc = update_crc(crc, cast(BYTE *)&spc_addr, 2);
 			crc = update_crc(crc, &spc[spc_addr], size);

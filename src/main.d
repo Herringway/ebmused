@@ -90,9 +90,13 @@ BOOL get_original_rom() nothrow {
 		cast(char*)"SNES ROM files (*.smc, *.sfc)\0*.smc;*.sfc\0All Files\0*.*\0".ptr,
 		NULL,
 		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
-	BOOL ret = file && open_orig_rom(file);
-	metadata_changed |= ret;
-	return ret;
+	try {
+		BOOL ret = file && open_orig_rom(file);
+		metadata_changed |= ret;
+		return ret;
+	} catch (Exception) {
+		return false;
+	}
 }
 
 void tab_selected(int new_) {
@@ -113,7 +117,7 @@ void tab_selected(int new_) {
 		0, 25, rc.right, rc.bottom - 25,
 		hwndMain, NULL, hinstance, NULL);
 
-	SendMessageA(tab_hwnd[new_], rom ? WM_ROM_OPENED : WM_ROM_CLOSED, 0, 0);
+	SendMessageA(tab_hwnd[new_], rom.isOpen ? WM_ROM_OPENED : WM_ROM_CLOSED, 0, 0);
 	SendMessageA(tab_hwnd[new_], cur_song.order_length ? WM_SONG_LOADED : WM_SONG_NOT_LOADED, 0, 0);
 }
 
@@ -306,9 +310,13 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case ID_OPEN: {
 			char *file = open_dialog(&GetOpenFileNameA,
 				cast(char*)"SNES ROM files (*.smc, *.sfc)\0*.smc;*.sfc\0All Files\0*.*\0".ptr, NULL, OFN_FILEMUSTEXIST);
-			if (file && open_rom(file, ofn.Flags & OFN_READONLY)) {
-				SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
-				SendMessageA(tab_hwnd[current_tab], WM_ROM_OPENED, 0, 0);
+			try {
+				if (file && open_rom(file, ofn.Flags & OFN_READONLY)) {
+					SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
+					SendMessageA(tab_hwnd[current_tab], WM_ROM_OPENED, 0, 0);
+				}
+			} catch (Exception e) {
+				MessageBox2(e.msg, "Could not open ROM", MB_ICONERROR);
 			}
 			break;
 		}
