@@ -1,5 +1,6 @@
 {
 	"description": "earthbound music editor",
 	"name": "ebmused",
-	"sourceFiles": ["src/resource.res"]
+	"sourceFiles": ["src/resource.res"],
+	"lflags-windows": ["-L/subsystem:windows"]
 }
