@@ -1,6 +1,7 @@
 {
 	"description": "earthbound music editor",
 	"name": "ebmused",
-	"sourceFiles": ["src/resource.res"],
+	"preBuildCommands-windows": ["buildres.cmd"],
+	"sourceFiles-windows": ["src/resource.res"],
 	"lflags-windows": ["-L/subsystem:windows"]
 }
