@@ -1,12 +1,18 @@
-#ifndef CreateWindow
-typedef unsigned char BYTE;
-typedef unsigned short WORD;
-typedef unsigned long DWORD;
-typedef int BOOL;
-#define FALSE 0
-#define TRUE 1
-typedef void *HWND;
-#endif
+
+import core.stdc.config;
+
+version = CreateWindow;
+version(CreateWindow) {
+	import core.sys.windows.windows;
+} else {
+	alias BYTE = ubyte;
+	alias WORD = ushort;
+	alias DWORD = cpp_ulong;
+	alias BOOL = int;
+	enum FALSE = 0;
+	enum TRUE = 1;
+	alias HWND = void *;
+}
 
 // structure used for track or subroutine
 // "size" does not include the ending [00] byte
@@ -15,19 +21,21 @@ struct track {
 	BYTE *track; // NULL for inactive track
 };
 
-struct song {
+alias song = Song;
+struct Song {
 	WORD address;
 	BYTE changed;
 	int order_length;
 	int *order;
 	int repeat, repeat_pos;
 	int patterns;
-	struct track (*pattern)[8];
+	track[8]* pattern;
 	int subs;
-	struct track *sub;
+	track *sub;
 };
 
-struct parser {
+alias parser = Parser;
+struct Parser {
 	BYTE *ptr;
 	BYTE *sub_ret;
 	int sub_start;
@@ -40,13 +48,12 @@ struct slider {
 	BYTE cycles, target;
 };
 
-struct song_state {
 	struct channel_state {
 		BYTE *ptr;
 
 		int next; // time left in note
 
-		struct slider note; BYTE cur_port_start_ctr;
+		slider note; BYTE cur_port_start_ctr;
 		BYTE note_len, note_style;
 
 		BYTE note_release; // time to release note, in cycles
@@ -58,11 +65,11 @@ struct song_state {
 		BYTE inst; // instrument
 		BYTE inst_adsr1;
 		BYTE finetune;
-		signed char transpose;
-		struct slider panning; BYTE pan_flags;
-		struct slider volume;
+		byte transpose;
+		slider panning; BYTE pan_flags;
+		slider volume;
 		BYTE total_vol;
-		signed char left_vol, right_vol;
+		byte left_vol, right_vol;
 
 		BYTE port_type, port_start, port_length, port_range;
 		BYTE vibrato_start, vibrato_speed, vibrato_max_range, vibrato_fadein;
@@ -72,15 +79,17 @@ struct song_state {
 		BYTE vibrato_fadein_ctr, vibrato_range_delta;
 		BYTE tremolo_phase, tremolo_start_ctr;
 
-		struct sample *samp;
+		sample *samp;
 		int samp_pos, note_freq;
 
 		double env_height; // envelope height
 		double decay_rate;
-	} chan[16];
-	signed char transpose;
-	struct slider volume;
-	struct slider tempo;
+	}
+struct song_state {
+	channel_state[16] chan;
+	byte transpose;
+	slider volume;
+	slider tempo;
 	int next_timer_tick, cycle_timer;
 	BYTE first_CA_inst; // set with FA
 	BYTE repeat_count;
@@ -101,18 +110,18 @@ struct block {
 
 // rom_packs contain info about the pack as it stands in the ROM file
 // .status is one of these constants:
-#define RPACK_ORIGINAL 0
-#define RPACK_MODIFIED 1
-#define RPACK_INVALID 2
-#define RPACK_SAVED 3
+enum RPACK_ORIGINAL = 0;
+enum RPACK_MODIFIED = 1;
+enum RPACK_INVALID = 2;
+enum RPACK_SAVED = 3;
 
 // inmem_packs contain info about the pack as it currently is in the editor
 // .status is a bitmask of these constants:
-#define IPACK_INMEM 1	// blocks[i].data valid if set
-#define IPACK_CHANGED 2
+enum IPACK_INMEM = 1;	// blocks[i].data valid if set
+enum IPACK_CHANGED = 2;
 struct pack {
 	int start_address;
 	int status;	// See constants above
 	int block_count;
-	struct block *blocks;
+	block *blocks;
 };

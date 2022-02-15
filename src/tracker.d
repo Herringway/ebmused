@@ -1,35 +1,51 @@
-#include <stdio.h>
-#include <stdlib.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmsystem.h>
-#include "id.h"
-#include "ebmusv2.h"
+import std.algorithm.comparison : max, min;
+import core.stdc.stdio;
+import core.stdc.stdlib;
+import core.stdc.string;
+import core.sys.windows.windows;
+import core.sys.windows.mmsystem;
+import id;
+import ebmusv2;
+import structs;
+import ctrltbl;
+import main;
+import sound;
+import text;
+import parser;
+import play;
+import misc;
+import songed;
+import song;
+import packs;
+import midi;
+import inst;
 
-HWND hwndTracker;
-static HWND hwndOrder;
-static HWND hwndState;
+extern(C):
 
-#define IDC_CHANSTATE_CAPTION 1 // child of hwndState
-static char cs_title[] = "Channel state (0)";
+__gshared HWND hwndTracker;
+__gshared private HWND hwndOrder;
+__gshared private HWND hwndState;
 
-#define IDC_ORDER 1
-#define IDC_REP_CAPTION 2
-#define IDC_REPEAT 3
-#define IDC_REP_POS_CAPTION 4
-#define IDC_REPEAT_POS 5
-#define IDC_PAT_LIST_CAPTION 6
-#define IDC_PAT_LIST 7
-#define IDC_PAT_ADD 8
-#define IDC_PAT_INS 9
-#define IDC_PAT_DEL 10
-#define IDC_TRACKER 15
-#define IDC_STATE 16
-#define IDC_EDITBOX_CAPTION 17
-#define IDC_EDITBOX 18
-#define IDC_ENABLE_CHANNEL_0 20
+enum IDC_CHANSTATE_CAPTION = 1; // child of hwndState
+private immutable char[17] cs_title = "Channel state (0)";
 
-static const struct control_desc editor_controls[] = {
+enum IDC_ORDER = 1;
+enum IDC_REP_CAPTION = 2;
+enum IDC_REPEAT = 3;
+enum IDC_REP_POS_CAPTION = 4;
+enum IDC_REPEAT_POS = 5;
+enum IDC_PAT_LIST_CAPTION = 6;
+enum IDC_PAT_LIST = 7;
+enum IDC_PAT_ADD = 8;
+enum IDC_PAT_INS = 9;
+enum IDC_PAT_DEL = 10;
+enum IDC_TRACKER = 15;
+enum IDC_STATE = 16;
+enum IDC_EDITBOX_CAPTION = 17;
+enum IDC_EDITBOX = 18;
+enum IDC_ENABLE_CHANNEL_0 = 20;
+
+immutable control_desc[16] editor_controls = [
 // Upper
 	{ "Static",          10, 13, 42, 20, "Patterns:", 0, 0 }, //"Order" label
 	{ "ebmused_order",   56, 10,-420,20, NULL, IDC_ORDER, WS_BORDER }, //Pattern order list
@@ -47,52 +63,53 @@ static const struct control_desc editor_controls[] = {
 	{ "ebmused_state",   10,  0,430,-10, NULL, IDC_STATE, 0 },
 	{ "Static",         450,  0,100, 15, NULL, IDC_EDITBOX_CAPTION, 0 },
 	{ "Edit",           450,15,-460,-25, NULL, IDC_EDITBOX, WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL },
-};
-static struct window_template editor_template = {
-	15, 3, 0, 0, editor_controls
+];
+private window_template editor_template = {
+	15, 3, 0, 0, &editor_controls[0]
 };
 
-static const struct control_desc state_controls[] = {
+immutable control_desc[2] state_controls = [
 	{ "Button",           0,  0,150,  0, "Global state", 0, BS_GROUPBOX },
 	{ "Button",         160,  0,270,  0, cs_title, IDC_CHANSTATE_CAPTION, BS_GROUPBOX },
-};
-static struct window_template state_template = { 2, 2, 0, 0, state_controls };
+];
+__gshared private window_template state_template = { 2, 2, 0, 0, &state_controls[0] };
 
-static int pos_width, font_height;
-static const BYTE zoom_levels[] = { 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96 };
-static int zoom = 6, zoom_idx = 4;
-static int tracker_width = 0;
-static int tracker_height;
-static BOOL editbox_had_focus;
+__gshared private int pos_width, font_height;
+private immutable BYTE[12] zoom_levels = [ 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96 ];
+__gshared private int zoom = 6, zoom_idx = 4;
+__gshared private int tracker_width = 0;
+__gshared private int tracker_height;
+__gshared private BOOL editbox_had_focus;
 
-static int cursor_chan;
+__gshared private int cursor_chan;
 // the following 4 variables are all set by cursor_moved()
 // current track or subroutine cursor is in
-static struct track *cursor_track;
-static BYTE *sel_from;
-static BYTE *sel_start, *sel_end;
+__gshared private track *cursor_track;
+__gshared private BYTE *sel_from;
+__gshared private BYTE *sel_start;
+__gshared private BYTE *sel_end;
 // these are what must be updated before calling cursor_moved()
-int cursor_pos;
-static struct parser cursor;
+__gshared int cursor_pos;
+__gshared private Parser cursor;
 
-static int pat_length;
-static PAINTSTRUCT ps;
+__gshared private int pat_length;
+__gshared private PAINTSTRUCT ps;
 
-void tracker_scrolled() {
+void tracker_scrolled() nothrow {
 	SetScrollPos(hwndTracker, SB_VERT, state.patpos, TRUE);
 	InvalidateRect(hwndTracker, NULL, FALSE);
 	InvalidateRect(hwndState, NULL, FALSE);
 }
 
-static void scroll_to(int new_pos) {
+private void scroll_to(int new_pos) nothrow {
 	if (new_pos == state.patpos) return;
 	if (new_pos < state.patpos)
 		state = pattop_state;
-	while (state.patpos < new_pos && do_cycle_no_sound(&state));
+	while (state.patpos < new_pos && do_cycle_no_sound(&state)) {}
 	tracker_scrolled();
 }
 
-static COLORREF get_bkcolor(int sub_loops) {
+private COLORREF get_bkcolor(int sub_loops) nothrow {
 	if (sub_loops == 0)
 		return 0xFFFFFF;
 	int c = 0x808080;
@@ -103,7 +120,7 @@ static COLORREF get_bkcolor(int sub_loops) {
 	return c;
 }
 
-static void get_font_size(HWND hWnd) {
+private void get_font_size(HWND hWnd) nothrow {
 	TEXTMETRIC tm;
 	HDC hdc = GetDC(hWnd);
 	HFONT oldfont = SelectObject(hdc, hfont);
@@ -114,7 +131,7 @@ static void get_font_size(HWND hWnd) {
 	font_height = tm.tmHeight;
 }
 
-static void get_sel_range() {
+private void get_sel_range() nothrow {
 	BYTE *s = sel_from;
 	BYTE *e = cursor.ptr;
 
@@ -129,20 +146,20 @@ static void get_sel_range() {
 	}
 }
 
-static void show_track_text() {
+private void show_track_text() nothrow {
 	char *txt = NULL;
-	struct track *t = cursor_track;
-	if (t->size) {
-		txt = malloc(text_length(t->track, t->track + t->size));
-		track_to_text(txt, t->track, t->size);
+	track *t = cursor_track;
+	if (t.size) {
+		txt = cast(char*)malloc(text_length(t.track, t.track + t.size));
+		track_to_text(txt, t.track, t.size);
 	}
-	SetDlgItemText(hwndEditor, IDC_EDITBOX, txt);
+	SetDlgItemTextA(hwndEditor, IDC_EDITBOX, txt);
 	free(txt);
 }
 
-static void cursor_moved(BOOL select) {
-	char caption[23];
-	struct track *t;
+private void cursor_moved(BOOL select) nothrow {
+	char[23] caption;
+	track *t;
 
 	if (!cur_song.order_length) return;
 
@@ -155,17 +172,17 @@ static void cursor_moved(BOOL select) {
 
 	if (cursor.sub_count) {
 		t = &cur_song.sub[cursor.sub_start];
-		sprintf(caption, "Subroutine %d", cursor.sub_start);
+		sprintf(&caption[0], "Subroutine %d", cursor.sub_start);
 	} else {
 		int ch = cursor_chan;
 		t = &cur_song.pattern[cur_song.order[state.ordnum]][ch];
-		sprintf(caption, "Track %d", ch);
+		sprintf(&caption[0], "Track %d", ch);
 		if (cursor.ptr == NULL)
-			strcat(caption, " (not present)");
+			strcat(&caption[0], " (not present)");
 	}
 	printf("t = %p\n", t);
 	if (t != cursor_track) {
-		SetDlgItemText(hwndEditor, IDC_EDITBOX_CAPTION, caption);
+		SetDlgItemTextA(hwndEditor, IDC_EDITBOX_CAPTION, &caption[0]);
 		cursor_track = t;
 		show_track_text();
 	}
@@ -173,7 +190,7 @@ static void cursor_moved(BOOL select) {
 	if (!select) sel_from = cursor.ptr;
 	get_sel_range();
 	if (cursor.ptr != NULL) {
-		int esel_start = text_length(t->track, sel_start);
+		int esel_start = text_length(t.track, sel_start);
 		int esel_end = esel_start + text_length(sel_start, sel_end) - 1;
 		SendDlgItemMessage(hwndEditor, IDC_EDITBOX, EM_SETSEL, esel_start, esel_end);
 		SendDlgItemMessage(hwndEditor, IDC_EDITBOX, EM_SCROLLCARET, 0, 0);
@@ -181,14 +198,15 @@ static void cursor_moved(BOOL select) {
 	InvalidateRect(hwndTracker, NULL, FALSE);
 }
 
-static void set_cur_chan(int ch) {
+private void set_cur_chan(int ch) nothrow {
+	char[17] titleCopy = cs_title;
 	cursor_chan = ch;
-	cs_title[15] = '0' + ch;
-	SetDlgItemText(hwndState, IDC_CHANSTATE_CAPTION, cs_title);
+	titleCopy[15] = cast(char)('0' + ch);
+	SetDlgItemTextA(hwndState, IDC_CHANSTATE_CAPTION, &titleCopy[0]);
 	InvalidateRect(hwndState, NULL, FALSE);
 }
 
-void load_pattern_into_tracker() {
+void load_pattern_into_tracker() nothrow {
 	if (hwndTracker == NULL) return;
 
 	InvalidateRect(hwndOrder, NULL, FALSE);
@@ -204,7 +222,7 @@ void load_pattern_into_tracker() {
 	pat_length = 0;
 	for (int ch = 0; ch < 8; ch++) {
 		if (pattop_state.chan[ch].ptr == NULL) continue;
-		struct parser p;
+		Parser p;
 		parser_init(&p, &pattop_state.chan[ch]);
 		do {
 			if (*p.ptr >= 0x80 && *p.ptr < 0xE0)
@@ -224,7 +242,7 @@ void load_pattern_into_tracker() {
 
 }
 
-static void pattern_changed() {
+private void pattern_changed() nothrow {
 	int pos = state.patpos;
 	scroll_to(0);
 	state.ordnum--;
@@ -234,10 +252,8 @@ static void pattern_changed() {
 	cur_song.changed = TRUE;
 }
 
-static BOOL cursor_home(BOOL select);
-static BOOL cursor_fwd(BOOL select);
-static void restore_cursor(struct track *t, int offset) {
-	BYTE *target_ptr = t->track + offset;
+private void restore_cursor(track *t, int offset) nothrow {
+	BYTE *target_ptr = t.track + offset;
 	cursor_home(FALSE);
 	do {
 		if (cursor.ptr == target_ptr)
@@ -246,7 +262,7 @@ static void restore_cursor(struct track *t, int offset) {
 	cursor_moved(FALSE);
 }
 
-BOOL CALLBACK TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+extern(Windows) BOOL TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		// need to return TRUE to set default focus
@@ -262,9 +278,9 @@ BOOL CALLBACK TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	return TRUE;
 }
 
-static WNDPROC EditWndProc;
+__gshared private WNDPROC EditWndProc;
 // Custom window procedure for the track/subroutine Edit control
-static LRESULT CALLBACK TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_SETFOCUS) {
 		editbox_had_focus = TRUE;
 	} else if (uMsg == WM_KEYDOWN && wParam == VK_ESCAPE) {
@@ -272,16 +288,16 @@ static LRESULT CALLBACK TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 		return 0;
 	} else if (uMsg == WM_CHAR && wParam == '\r') {
 		int len = GetWindowTextLength(hWnd) + 1;
-		char *p = malloc(len);
-		struct parser c = cursor;
-		GetWindowText(hWnd, p, len);
+		char *p = cast(char*)malloc(len);
+		Parser c = cursor;
+		GetWindowTextA(hWnd, p, len);
 		if (text_to_track(p, cursor_track, c.sub_count)) {
 			// Find out where the editbox's caret was, and
 			// move the tracker cursor appropriately.
 			DWORD start;
-			SendMessage(hWnd, EM_GETSEL, (WPARAM)&start, 0);
+			SendMessage(hWnd, EM_GETSEL, cast(WPARAM)&start, 0);
 			p[start] = '\0';
-			struct track *t = cursor_track;
+			track *t = cursor_track;
 			int new_pos = calc_track_size_from_text(p);
 			pattern_changed();
 			// XXX: may point to middle of a code
@@ -294,7 +310,7 @@ static LRESULT CALLBACK TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 	return CallWindowProc(EditWndProc, hWnd, uMsg, wParam, lParam);
 }
 
-static void goto_order(int pos) {
+private void goto_order(int pos) nothrow {
 	int i;
 	initialize_state();
 	for (i = 0; i < pos; i++) {
@@ -304,7 +320,7 @@ static void goto_order(int pos) {
 		for (int ch = 0; ch < 8; ch++) {
 			if (state.chan[ch].ptr != NULL) {
 				// We've found a non-null track. Simulate the current pattern.
-				while (do_cycle_no_sound(&state));
+				while (do_cycle_no_sound(&state)) {}
 				// We're done with the current pattern. Move on to the next one.
 				break;
 			}
@@ -314,25 +330,25 @@ static void goto_order(int pos) {
 	load_pattern_into_tracker();
 }
 
-static void pattern_added() {
-	char buf[12];
-	sprintf(buf, "%d", cur_song.patterns - 1);
+private void pattern_added() nothrow {
+	char[12] buf;
+	sprintf(&buf[0], "%d", cur_song.patterns - 1);
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST, CB_ADDSTRING,
-		0, (LPARAM)buf);
+		0, cast(LPARAM)&buf[0]);
 }
 
-static void pattern_deleted() {
+private void pattern_deleted() nothrow {
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST, CB_DELETESTRING,
 		cur_song.patterns, 0);
 }
 
-static void show_repeat() {
+private void show_repeat() nothrow {
 	SetDlgItemInt(hwndEditor, IDC_REPEAT, cur_song.repeat, FALSE);
 	SetDlgItemInt(hwndEditor, IDC_REPEAT_POS, cur_song.repeat_pos, FALSE);
 }
 
-LRESULT CALLBACK EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	static const BYTE editor_menu_cmds[] = {
+extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+	static const BYTE[21] editor_menu_cmds = [
 		ID_CUT, ID_COPY, ID_PASTE, ID_DELETE,
 		ID_SPLIT_PATTERN, ID_JOIN_PATTERNS,
 		ID_MAKE_SUBROUTINE, ID_UNMAKE_SUBROUTINE, ID_TRANSPOSE,
@@ -343,43 +359,43 @@ LRESULT CALLBACK EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		ID_SET_DURATION_3, ID_SET_DURATION_4,
 		ID_SET_DURATION_5, ID_SET_DURATION_6,
 		0
-	};
+	];
 	switch (uMsg) {
 	case WM_CREATE:
 		get_font_size(hWnd);
-		editor_template.divy = ((CREATESTRUCT *)lParam)->cy - (font_height * 7 + 17);
+		editor_template.divy = (cast(CREATESTRUCT *)lParam).cy - (font_height * 7 + 17);
 		create_controls(hWnd, &editor_template, lParam);
 		for (int i = 0; i < 8; i++) {
-			char buf[2] = { '0' + i, 0 };
-			HWND b = CreateWindow("Button", buf,
+			char[2] buf = [ cast(char)('0' + i), 0 ];
+			HWND b = CreateWindowA("Button", &buf[0],
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0,
-				hWnd, (HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, NULL);
+				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, NULL);
 			SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
 		}
-		EditWndProc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, (LONG_PTR)TrackEditWndProc);
+		EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
 		break;
 	case WM_SONG_IMPORTED:
 	case WM_SONG_LOADED:
 		EnableWindow(hWnd, TRUE);
-		enable_menu_items(editor_menu_cmds, MF_ENABLED);
+		enable_menu_items(&editor_menu_cmds[0], MF_ENABLED);
 		show_repeat();
 		HWND cb = GetDlgItem(hWnd, IDC_PAT_LIST);
 		SendMessage(cb, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i < cur_song.patterns; i++) {
-			char buf[11];
-			sprintf(buf, "%d", i);
-			SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)buf);
+			char[11] buf;
+			sprintf(&buf[0], "%d", i);
+			SendMessage(cb, CB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
 		}
 		load_pattern_into_tracker();
 		break;
 	case WM_ROM_CLOSED:
 	case WM_SONG_NOT_LOADED:
 		EnableWindow(hWnd, FALSE);
-		enable_menu_items(editor_menu_cmds, MF_GRAYED);
+		enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
 		break;
 	case WM_DESTROY:
 		save_cur_song_to_pack();
-		enable_menu_items(editor_menu_cmds, MF_GRAYED);
+		enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
 		break;
 	case WM_COMMAND: {
 		int id = LOWORD(wParam);
@@ -399,7 +415,7 @@ LRESULT CALLBACK EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		} else if (id == IDC_PAT_LIST) {
 			if (HIWORD(wParam) != CBN_SELCHANGE) break;
 			cur_song.order[state.ordnum] =
-				SendMessage((HWND)lParam, CB_GETCURSEL, 0, 0);
+				SendMessage(cast(HWND)lParam, CB_GETCURSEL, 0, 0);
 			scroll_to(0);
 			pattern_changed();
 		} else if (id == IDC_PAT_ADD || id == IDC_PAT_INS) {
@@ -407,8 +423,8 @@ LRESULT CALLBACK EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			int ord = cur_song.order_length;
 			if (id == IDC_PAT_ADD)
 			{
-				struct track *t = pattern_insert(pat);
-				memset(t, 0, sizeof(struct track) * 8);
+				track *t = pattern_insert(pat);
+				memset(t, 0, track.sizeof * 8);
 				pattern_added();
 			}
 			order_insert(ord, pat);
@@ -444,7 +460,7 @@ LRESULT CALLBACK EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
-LRESULT CALLBACK OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE:
 		hwndOrder = hWnd;
@@ -480,15 +496,15 @@ LRESULT CALLBACK OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		RECT rc;
 		GetClientRect(hWnd, &rc);
 		for (int i = 0; i < cur_song.order_length; i++) {
-			char buf[6];
-			int len = sprintf(buf, "%d", cur_song.order[i]);
+			char[6] buf;
+			int len = sprintf(&buf[0], "%d", cur_song.order[i]);
 			rc.right = rc.left + 25;
 			COLORREF tc = 0, bc = 0;
 			if (i == pattop_state.ordnum) {
 				tc = SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
 				bc = SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
 			}
-			ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, buf, len, NULL);
+			ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], len, NULL);
 			if (i == pattop_state.ordnum) {
 				SetTextColor(hdc, tc);
 				SetBkColor(hdc, bc);
@@ -498,7 +514,7 @@ LRESULT CALLBACK OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 			rc.left = rc.right;
 		}
 		rc.right = ps.rcPaint.right;
-		FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
+		FillRect(hdc, &rc, cast(HBRUSH)(COLOR_WINDOW + 1));
 		EndPaint(hWnd, &ps);
 		break;
 	}
@@ -508,25 +524,26 @@ LRESULT CALLBACK OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 	return 0;
 }
 
-static void tracker_paint(HWND hWnd) {
+private void tracker_paint(HWND hWnd) nothrow {
 	HDC hdc = BeginPaint(hWnd, &ps);
 	RECT rc;
-	char codes[8];
+	char[8] codes;
 	int length;
+	int pos;
 	set_up_hdc(hdc);
 
 	if (cur_song.order_length == 0) {
-		static const char str[] = "No song is currently loaded.";
+		static const char[28] str = "No song is currently loaded.";
 		GetClientRect(hWnd, &rc);
 		SetTextAlign(hdc, TA_CENTER);
 		int x = (rc.left + rc.right) >> 1;
 		int y = (rc.top + rc.bottom - font_height) >> 1;
-		ExtTextOut(hdc, x, y, ETO_OPAQUE, &rc, str, sizeof(str) - 1, NULL);
+		ExtTextOutA(hdc, x, y, ETO_OPAQUE, &rc, &str[0], str.length, NULL);
 		if (get_cur_block() != NULL && decomp_error) {
 			y += font_height;
-			TextOut(hdc, x, y, "Additional information:", 23);
+			TextOutA(hdc, x, y, "Additional information:", 23);
 			y += font_height;
-			TextOut(hdc, x, y, decomp_error, strlen(decomp_error));
+			TextOutA(hdc, x, y, decomp_error, strlen(decomp_error));
 		}
 		goto paint_end;
 	}
@@ -535,25 +552,25 @@ static void tracker_paint(HWND hWnd) {
 	SetBkColor(hdc, 0x808080);
 	rc.left = 0;
 	rc.right = pos_width;
-	int pos = state.patpos;
+	pos = state.patpos;
 	rc.top = -(pos % zoom);
 	pos += rc.top;
 	// simulate rounding towards zero, so these numbers
 	// will be properly aligned with the notes
 	rc.top = (rc.top + zoom) * font_height / zoom - font_height;
 	while (rc.top < ps.rcPaint.bottom) {
-		int len = sprintf(codes, "%d", pos);
+		int len = sprintf(&codes[0], "%d", pos);
 		rc.bottom = rc.top + font_height;
-		ExtTextOut(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, codes, len, NULL);
+		ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &codes[0], len, NULL);
 		rc.top = rc.bottom;
 		pos += zoom;
 	}
 
 	for (int chan = 0; chan < 8; chan++) {
-		struct channel_state *cs = &state.chan[chan];
-		struct parser p;
+		channel_state *cs = &state.chan[chan];
+		Parser p;
 		parser_init(&p, cs);
-		pos = state.patpos + cs->next;
+		pos = state.patpos + cs.next;
 
 		rc.left = rc.right + 1; // skip divider
 		rc.right = pos_width + (tracker_width * (chan + 1) >> 3);
@@ -563,11 +580,11 @@ static void tracker_paint(HWND hWnd) {
 
 		if (p.ptr == NULL) {
 			rc.bottom = ps.rcPaint.bottom;
-			FillRect(hdc, &rc, (HBRUSH)(COLOR_GRAYTEXT + 1));
+			FillRect(hdc, &rc, cast(HBRUSH)(COLOR_GRAYTEXT + 1));
 			goto draw_divider;
 		}
 
-		rc.bottom = cs->next * font_height / zoom;
+		rc.bottom = cs.next * font_height / zoom;
 		SetTextColor(hdc, 0);
 		SetBkColor(hdc, get_bkcolor(p.sub_count));
 		ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
@@ -586,24 +603,24 @@ static void tracker_paint(HWND hWnd) {
 			if (chr >= 0x80 && chr < 0xE0) {
 				length = 3;
 				if (chr >= 0xCA)
-					length = sprintf(codes, "%02X", chr);
+					length = sprintf(&codes[0], "%02X", chr);
 				else if (chr == 0xC9)
-					memcpy(codes, "---", 3);
+					memcpy(&codes[0], "---".ptr, 3);
 				else if (chr == 0xC8)
-					memcpy(codes, "...", 3);
+					memcpy(&codes[0], "...".ptr, 3);
 				else {
 					chr &= 0x7F;
-					memcpy(codes, "C-C#D-D#E-F-F#G-G#A-A#B-"+2*(chr%12), 2);
+					memcpy(&codes[0], &"C-C#D-D#E-F-F#G-G#A-A#B-"[2*(chr%12)], 2);
 					codes[2] = '1' + chr/12;
 				}
 
 				pos += p.note_len;
 				next_y = (pos - state.patpos)*font_height/zoom;
-note:			GetTextExtentPoint32(hdc, codes, length, &extent);
+note:			GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				rc.bottom = rc.top + extent.cy;
 				SetTextAlign(hdc, TA_RIGHT);
-				ExtTextOut(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
-					codes, length, NULL);
+				ExtTextOutA(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
+					&codes[0], length, NULL);
 				if (highlight) {
 					COLORREF bc;
 					if (real_highlight) {
@@ -614,8 +631,8 @@ note:			GetTextExtentPoint32(hdc, codes, length, &extent);
 						bc = SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
 					}
 					rc.left = rc.right - extent.cx - 2;
-					ExtTextOut(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
-						codes, length, NULL);
+					ExtTextOutA(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
+						&codes[0], length, NULL);
 					SetTextColor(hdc, 0);
 					SetBkColor(hdc, bc);
 					if (p.ptr == cursor.ptr && GetFocus() == hWnd)
@@ -626,21 +643,21 @@ note:			GetTextExtentPoint32(hdc, codes, length, &extent);
 				rc.left = chan_xleft;
 				rc.top = rc.bottom;
 				rc.bottom = next_y;
-				ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
+				ExtTextOutA(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
 				rc.top = rc.bottom;
 			} else if (chr == 0) {
 				if (p.sub_count == 0) {
 					next_y = ps.rcPaint.bottom;
 					SetTextColor(hdc, GetSysColor(COLOR_WINDOWTEXT));
 					SetBkColor(hdc, GetSysColor(COLOR_3DFACE));
-					strcpy(codes, "End");
+					strcpy(&codes[0], "End".ptr);
 					length = 3;
 					goto note;
 				}
 			} else {
-				length = sprintf(codes, "%02X", chr);
+				length = sprintf(&codes[0], "%02X", chr);
 				if (chr < 0x80 && p.ptr[1] < 0x80)
-					length += sprintf(codes + 2, "%02X", p.ptr[1]);
+					length += sprintf(&codes[2], "%02X", p.ptr[1]);
 
 				if (highlight) {
 					if (real_highlight) {
@@ -652,11 +669,11 @@ note:			GetTextExtentPoint32(hdc, codes, length, &extent);
 					}
 				}
 				int r = rc.right;
-				GetTextExtentPoint32(hdc, codes, length, &extent);
+				GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				rc.right = rc.left + extent.cx + 2;
 				rc.bottom = rc.top + extent.cy;
-				ExtTextOut(hdc, rc.left + 1, rc.top, ETO_OPAQUE, &rc,
-					codes, length, NULL);
+				ExtTextOutA(hdc, rc.left + 1, rc.top, ETO_OPAQUE, &rc,
+					&codes[0], length, NULL);
 				if (highlight) {
 					SetTextColor(hdc, 0);
 					SetBkColor(hdc, get_bkcolor(p.sub_count));
@@ -684,31 +701,31 @@ paint_end:
 	EndPaint(hWnd, &ps);
 }
 
-static BOOL cursor_fwd(BOOL select) {
-	int byte = *cursor.ptr;
+private BOOL cursor_fwd(BOOL select) nothrow {
+	int byte_ = *cursor.ptr;
 	if (select) {
 		// Don't select past end of subroutine
-		if (byte == 0x00) return FALSE;
+		if (byte_ == 0x00) return FALSE;
 		// Skip subroutines
-		if (byte == 0xEF) {
+		if (byte_ == 0xEF) {
 			do
 				cursor_fwd(FALSE);
 			while (cursor.sub_count != 0);
 			return TRUE;
 		}
 	}
-	if (byte >= 0x80 && byte < 0xE0)
+	if (byte_ >= 0x80 && byte_ < 0xE0)
 		cursor_pos += cursor.note_len;
 	return parser_advance(&cursor);
 }
 
-static BOOL cursor_home(BOOL select) {
+private BOOL cursor_home(BOOL select) nothrow {
 	if (select && cursor.sub_count) {
 		// Go to the top of the subroutine
-		if (cursor.ptr == cursor_track->track)
+		if (cursor.ptr == cursor_track.track)
 			return FALSE;
 		// Start from the top of the track, and search down
-		struct parser target = cursor;
+		Parser target = cursor;
 		if (!cursor_home(FALSE))
 			return FALSE;
 		do {
@@ -732,10 +749,10 @@ static BOOL cursor_home(BOOL select) {
 /// \brief Attempts to move the cursor back by one control code.
 /// \return Returns false if the cursor cannot be moved backwards due
 /// to already being at the top of the track, otherwise returns true.
-static BOOL cursor_back(BOOL select) {
+private BOOL cursor_back(BOOL select) nothrow {
 	int prev_pos;
-	struct parser prev;
-	struct parser target = cursor;
+	Parser prev;
+	Parser target = cursor;
 	if (!cursor_home(select))
 		return FALSE;
 	do {
@@ -750,24 +767,24 @@ static BOOL cursor_back(BOOL select) {
 	return TRUE;
 }
 
-static BOOL cursor_end(BOOL select) {
-	while (cursor_fwd(select));
+private BOOL cursor_end(BOOL select) nothrow {
+	while (cursor_fwd(select)) {}
 	return TRUE;
 }
 
-static BOOL cursor_on_note() {
+private BOOL cursor_on_note() nothrow {
 	// Consider the ending [00] on a track/subroutine as a note, since it's
 	// displayed on the right (for end of track) and you can insert notes there.
 	return *cursor.ptr == 0 || (*cursor.ptr >= 0x80 && *cursor.ptr < 0xE0);
 }
 
-static BOOL cursor_up(BOOL select) {
+private BOOL cursor_up(BOOL select) nothrow {
 	BOOL on_note = cursor_on_note();
-	struct parser target = cursor;
+	Parser target = cursor;
 	if (!cursor_home(select))
 		return FALSE;
 	int prev_pos;
-	struct parser prev;
+	Parser prev;
 	prev.ptr = NULL;
 	if (on_note) {
 		// find previous note
@@ -803,26 +820,26 @@ static BOOL cursor_up(BOOL select) {
 	return TRUE;
 }
 
-static BOOL cursor_down(BOOL select) {
+private BOOL cursor_down(BOOL select) nothrow {
 	BOOL on_note = cursor_on_note();
-	while (cursor_fwd(select) && !cursor_on_note());
+	while (cursor_fwd(select) && !cursor_on_note()) {}
 	if (!on_note)
-		while (cursor_fwd(select) && cursor_on_note());
+		while (cursor_fwd(select) && cursor_on_note()) {}
 	return TRUE;
 }
 
-static void cursor_to_xy(int x, int y, BOOL select) {
+private void cursor_to_xy(int x, int y, BOOL select) nothrow {
 	x -= pos_width;
 	int ch = x * 8 / tracker_width;
 	if (ch < 0 || ch > 7) return;
 	if (select && ch != cursor_chan) return;
 
-	struct channel_state *cs = &state.chan[ch];
-	struct parser p;
+	channel_state *cs = &state.chan[ch];
+	Parser p;
 	int pos = 0;
 	parser_init(&p, cs);
 	if (p.ptr != NULL) {
-		char codes[8];
+		char[8] codes;
 		int chan_xleft  = (tracker_width * ch       >> 3) + 1;
 //		int chan_xright = (tracker_width * (ch + 1) >> 3);
 
@@ -830,10 +847,10 @@ static void cursor_to_xy(int x, int y, BOOL select) {
 		HFONT oldfont = SelectObject(hdc, hfont);
 
 		int target_pos = state.patpos + y * zoom / font_height;
-		pos = state.patpos + cs->next;
+		pos = state.patpos + cs.next;
 
 		int px = chan_xleft;
-		struct parser maybe_new_cursor;
+		Parser maybe_new_cursor;
 		maybe_new_cursor.ptr = NULL;
 		do {
 			BYTE chr = *p.ptr;
@@ -851,10 +868,10 @@ static void cursor_to_xy(int x, int y, BOOL select) {
 			} else if (chr == 0) {
 				/* nothing */
 			} else {
-				int length = sprintf(codes, "%02X", chr);
+				int length = sprintf(&codes[0], "%02X", chr);
 				if (chr < 0x80 && p.ptr[1] < 0x80)
-					length += sprintf(codes + 2, "%02X", p.ptr[1]);
-				GetTextExtentPoint32(hdc, codes, length, &extent);
+					length += sprintf(&codes[2], "%02X", p.ptr[1]);
+				GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				px += extent.cx + 2;
 				if (x < px && maybe_new_cursor.ptr == NULL)
 					maybe_new_cursor = p;
@@ -877,7 +894,7 @@ static void cursor_to_xy(int x, int y, BOOL select) {
 	cursor_moved(select);
 }
 
-BOOL move_cursor(BOOL (*func)(BOOL select), BOOL select) {
+BOOL move_cursor(BOOL function(BOOL select) nothrow func, BOOL select) nothrow {
 	if (cursor.ptr == NULL) return FALSE;
 	if (func(select)) {
 		cursor_moved(select);
@@ -887,40 +904,41 @@ BOOL move_cursor(BOOL (*func)(BOOL select), BOOL select) {
 }
 
 // Inserts code at the cursor
-static void track_insert(int size, const BYTE *data) {
-	struct track *t = cursor_track;
-	int off = cursor.ptr - t->track;
-	t->size += size;
-	t->track = realloc(t->track, t->size + 1);
-	BYTE *ins = t->track + off;
-	memmove(ins + size, ins, t->size - (off + size));
-	t->track[t->size] = '\0';
+private void track_insert(int size, const BYTE *data) nothrow {
+	track *t = cursor_track;
+	int off = cursor.ptr - t.track;
+	t.size += size;
+	t.track = cast(ubyte*)realloc(t.track, t.size + 1);
+	BYTE *ins = t.track + off;
+	memmove(ins + size, ins, t.size - (off + size));
+	t.track[t.size] = '\0';
 	memcpy(ins, data, size);
 	pattern_changed();
 	restore_cursor(t, off);
 }
 
-static BOOL copy_sel() {
-	BYTE *start = sel_start, *end = sel_end;
+private BOOL copy_sel() nothrow {
+	BYTE *start = sel_start;
+	BYTE *end = sel_end;
 	if (start == end) return FALSE;
 	if (!validate_track(start, end - start, cursor.sub_count))
 		return FALSE;
 	if (!OpenClipboard(hwndMain)) return FALSE;
 	EmptyClipboard();
 	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, text_length(start, end));
-	track_to_text(GlobalLock(hglb), start, end - start);
+	track_to_text(cast(char*)GlobalLock(hglb), start, end - start);
 	GlobalUnlock(hglb);
 	SetClipboardData(CF_TEXT, hglb);
 	CloseClipboard();
 	return TRUE;
 }
 
-static void paste_sel() {
+private void paste_sel() nothrow {
 	if (!OpenClipboard(hwndMain)) return;
 	HGLOBAL hglb = GetClipboardData(CF_TEXT);
 	if (hglb) {
-		char *txt = GlobalLock(hglb);
-		struct track temp_track = { 0, NULL };
+		char *txt = cast(char*)GlobalLock(hglb);
+		track temp_track = { 0, NULL };
 		if (text_to_track(txt, &temp_track, cursor.sub_count)) {
 			track_insert(temp_track.size, temp_track.track);
 			free(temp_track.track);
@@ -930,39 +948,40 @@ static void paste_sel() {
 	CloseClipboard();
 }
 
-static void delete_sel(BOOL cut) {
-	struct track *t = cursor_track;
-	if (t->track == NULL) return;
-	BYTE *start = sel_start, *end = sel_end;
-	if (end == t->track + t->size) {
+private void delete_sel(BOOL cut) nothrow {
+	track *t = cursor_track;
+	if (t.track == NULL) return;
+	BYTE* start = sel_start;
+	BYTE* end = sel_end;
+	if (end == t.track + t.size) {
 		// Don't let the track end with a note-length code
-		if (!validate_track(t->track, start - t->track, cursor.sub_count))
+		if (!validate_track(t.track, start - t.track, cursor.sub_count))
 			return;
 	}
 	if (cut) {
 		if (!copy_sel()) return;
 	}
-	memmove(start, end, t->track + (t->size + 1) - end);
-	t->size -= (end - start);
-	if (t->size == 0 && !cursor.sub_count) {
-		free(t->track);
-		t->track = NULL;
+	memmove(start, end, t.track + (t.size + 1) - end);
+	t.size -= (end - start);
+	if (t.size == 0 && !cursor.sub_count) {
+		free(t.track);
+		t.track = NULL;
 		start = NULL;
 	}
 	pattern_changed();
-	restore_cursor(t, start - t->track);
+	restore_cursor(t, start - t.track);
 }
 
-static void updateOrInsertDuration(BYTE(*callback)(BYTE, int), int durationOrOffset)
+private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, int durationOrOffset) nothrow
 {
 	// We cannot insert a duration code before an 0x00 code,
 	// so ensure that's not the case before proceeding.
-	if (cursor_track->track != NULL
+	if (cursor_track.track != NULL
 		&& *cursor.ptr != 0)
 	{
 		BYTE* original_pos = cursor.ptr;
-		struct track* t = cursor_track;
-		int off = cursor.ptr - t->track;
+		track* t = cursor_track;
+		int off = cursor.ptr - t.track;
 		if (*cursor.ptr >= 0x01 && *cursor.ptr <= 0x7F)
 		{
 			BYTE duration = callback(*cursor.ptr, durationOrOffset);
@@ -1015,7 +1034,7 @@ static void updateOrInsertDuration(BYTE(*callback)(BYTE, int), int durationOrOff
 				BYTE duration = callback(last_duration_pos == NULL ? state.chan[cursor_chan].note_len : *last_duration_pos, durationOrOffset);
 				if (duration != 0)
 				{
-					track_insert(1, (BYTE *)&duration);
+					track_insert(1, cast(BYTE *)&duration);
 					cursor_fwd(FALSE);
 				}
 			}
@@ -1023,33 +1042,33 @@ static void updateOrInsertDuration(BYTE(*callback)(BYTE, int), int durationOrOff
 	}
 }
 
-static BYTE setDurationOffsetCallback(BYTE originalDuration, int offset)
+private BYTE setDurationOffsetCallback(BYTE originalDuration, int offset) nothrow
 {
-	BYTE newDuration = min(max(0x00, originalDuration + offset), 0xFF);
+	BYTE newDuration = cast(BYTE)min(max(0x00, originalDuration + offset), 0xFF);
 	return (newDuration >= 0x01 && newDuration <= 0x7F) ? newDuration : 0;
 }
 
-static BYTE setDurationCallback(BYTE originalDuration, int duration)
+private BYTE setDurationCallback(BYTE originalDuration, int duration) nothrow
 {
-	return (duration >= 0x01 && duration <= 0x7F) ? duration : 0;
+	return cast(BYTE)((duration >= 0x01 && duration <= 0x7F) ? duration : 0);
 }
 
-static void incrementDuration()
+private void incrementDuration() nothrow
 {
-	updateOrInsertDuration(setDurationOffsetCallback, 1);
+	updateOrInsertDuration(&setDurationOffsetCallback, 1);
 }
 
-static void decrementDuration()
+private void decrementDuration() nothrow
 {
-	updateOrInsertDuration(setDurationOffsetCallback, -1);
+	updateOrInsertDuration(&setDurationOffsetCallback, -1);
 }
 
-static void setDuration(BYTE duration)
+private void setDuration(BYTE duration) nothrow
 {
-	updateOrInsertDuration(setDurationCallback, duration);
+	updateOrInsertDuration(&setDurationCallback, duration);
 }
 
-void editor_command(int id) {
+void editor_command(int id) nothrow {
 	switch (id) {
 	case ID_CUT: delete_sel(TRUE); break;
 	case ID_COPY: copy_sel(); break;
@@ -1059,12 +1078,12 @@ void editor_command(int id) {
 		free_song(&cur_song);
 		cur_song.changed = TRUE;
 		cur_song.order_length = 1;
-		cur_song.order = malloc(sizeof(int));
+		cur_song.order = cast(int*)malloc(int.sizeof);
 		cur_song.order[0] = 0;
 		cur_song.repeat = 0;
 		cur_song.repeat_pos = 0;
 		cur_song.patterns = 1;
-		cur_song.pattern = calloc(sizeof(struct track), 8);
+		cur_song.pattern = cast(track[8]*)calloc(track.sizeof, 8);
 		cur_song.subs = 0;
 		cur_song.sub = NULL;
 		initialize_state();
@@ -1086,38 +1105,39 @@ void editor_command(int id) {
 		break;
 	case ID_MAKE_SUBROUTINE: {
 		if (cursor.sub_count) {
-			MessageBox2("Cursor is already in a subroutine!",
-				"Make Subroutine", MB_ICONEXCLAMATION);
+			MessageBox2(cast(char*)"Cursor is already in a subroutine!".ptr,
+				cast(char*)"Make Subroutine".ptr, MB_ICONEXCLAMATION);
 			break;
 		}
-		BYTE *start = sel_start, *end = sel_end;
+		BYTE* start = sel_start;
+		BYTE* end = sel_end;
 		int count;
 		int sub = create_sub(start, end, &count);
 		if (sub < 0) break;
-		struct track *t = cursor_track;
-		int old_size = t->size;
+		track *t = cursor_track;
+		int old_size = t.size;
 
-		if (start >= (t->track + 4)
+		if (start >= (t.track + 4)
 			&& start[-4] == 0xEF
-			&& *(WORD *)&start[-3] == sub
+			&& *cast(WORD *)&start[-3] == sub
 			&& count + start[-1] <= 255)
 		{
 			count += start[-1];
 			start -= 4;
 		}
 		if (end[0] == 0xEF
-			&& *(WORD *)&end[1] == sub
+			&& *cast(WORD *)&end[1] == sub
 			&& count + end[3] <= 255)
 		{
 			count += end[3];
 			end += 4;
 		}
-		memmove(start + 4, end, t->track + (old_size + 1) - end);
-		t->size = old_size + 4 - (end - start);
+		memmove(start + 4, end, t.track + (old_size + 1) - end);
+		t.size = old_size + 4 - (end - start);
 		start[0] = 0xEF;
 		start[1] = sub & 255;
-		start[2] = sub >> 8;
-		start[3] = count;
+		start[2] = cast(ubyte)(sub >> 8);
+		start[3] = cast(ubyte)(count);
 		pattern_changed();
 		restore_cursor(&cur_song.sub[sub], 0);
 		break;
@@ -1125,17 +1145,17 @@ void editor_command(int id) {
 	// Substitute a subroutine back into the main track
 	case ID_UNMAKE_SUBROUTINE: {
 		if (!cursor.sub_count) break;
-		BYTE *src = cursor_track->track;
-		int subsize = cursor_track->size;
-		struct track *t = &cur_song.pattern[cur_song.order[state.ordnum]][cursor_chan];
-		int off = cursor.sub_ret - t->track;
+		BYTE *src = cursor_track.track;
+		int subsize = cursor_track.size;
+		track *t = &cur_song.pattern[cur_song.order[state.ordnum]][cursor_chan];
+		int off = cursor.sub_ret - t.track;
 		int count = cursor.sub_ret[-1];
-		int old_size = t->size;
-		t->size = (old_size - 4 + (subsize * count));
-		t->track = realloc(t->track, t->size + 1);
-		memmove(t->track + (off - 4) + (subsize * count), t->track + off,
+		int old_size = t.size;
+		t.size = (old_size - 4 + (subsize * count));
+		t.track = cast(ubyte*)realloc(t.track, t.size + 1);
+		memmove(t.track + (off - 4) + (subsize * count), t.track + off,
 			(old_size + 1) - off);
-		BYTE *dest = t->track + (off - 4);
+		BYTE *dest = t.track + (off - 4);
 		for (int i = 0; i < count; i++) {
 			memcpy(dest, src, subsize);
 			dest += subsize;
@@ -1145,7 +1165,7 @@ void editor_command(int id) {
 	}
 	case ID_TRANSPOSE: {
 		int delta = DialogBox(hinstance, MAKEINTRESOURCE(IDD_TRANSPOSE),
-			hwndMain, TransposeDlgProc);
+			hwndMain, &TransposeDlgProc);
 		if (delta == 0) break;
 		for (BYTE *p = sel_start; p < sel_end; p = next_code(p)) {
 			int note = *p - 0x80;
@@ -1153,7 +1173,7 @@ void editor_command(int id) {
 			note += delta;
 			note %= 0x48;
 			if (note < 0) note += 0x48;
-			*p = 0x80 + note;
+			*p = cast(BYTE)(0x80 + note);
 		}
 		cur_song.changed = TRUE;
 		show_track_text();
@@ -1194,36 +1214,37 @@ void editor_command(int id) {
 	case ID_SET_DURATION_6:
 		setDuration(0x03);
 		break;
+	default: break;
 	}
 }
 
-static void addOrInsertNote(int note)
+private void addOrInsertNote(int note) nothrow
 {
 	if (note > 0x0 && note < 0x70) {
 		note |= 0x80;
-		if (cursor.ptr == cursor_track->track + cursor_track->size) {
-			track_insert(1, (BYTE *)&note);
+		if (cursor.ptr == cursor_track.track + cursor_track.size) {
+			track_insert(1, cast(BYTE *)&note);
 		} else if (*cursor.ptr >= 0x80 && *cursor.ptr < 0xE0) {
-			*cursor.ptr = note;
+			*cursor.ptr = cast(ubyte)note;
 			cur_song.changed = TRUE;
 			show_track_text();
 		} else {
 			return;
 		}
-		move_cursor(cursor_fwd, FALSE);
+		move_cursor(&cursor_fwd, FALSE);
 	}
 }
 
-static void tracker_keydown(WPARAM wParam) {
+private void tracker_keydown(WPARAM wParam) nothrow {
 	int control = GetKeyState(VK_CONTROL) & 0x8000;
 	int shift = GetKeyState(VK_SHIFT) & 0x8000;
 	switch (wParam) {
 	case VK_PRIOR: scroll_to(state.patpos - 96); break;
 	case VK_NEXT:  scroll_to(state.patpos + 96); break;
-	case VK_HOME:  move_cursor(cursor_home, shift); break;
-	case VK_END:   move_cursor(cursor_end, shift); break;
-	case VK_LEFT:  move_cursor(cursor_back, shift); break;
-	case VK_RIGHT: move_cursor(cursor_fwd, shift); break;
+	case VK_HOME:  move_cursor(&cursor_home, shift); break;
+	case VK_END:   move_cursor(&cursor_end, shift); break;
+	case VK_LEFT:  move_cursor(&cursor_back, shift); break;
+	case VK_RIGHT: move_cursor(&cursor_fwd, shift); break;
 	case VK_TAB:
 		set_cur_chan((cursor_chan + (shift ? -1 : 1)) & 7);
 		parser_init(&cursor, &state.chan[cursor_chan]);
@@ -1234,20 +1255,20 @@ static void tracker_keydown(WPARAM wParam) {
 		if (control)
 			scroll_to(state.patpos - zoom);
 		else
-			move_cursor(cursor_up, shift);
+			move_cursor(&cursor_up, shift);
 		break;
 	case VK_DOWN:
 		if (control)
 			scroll_to(state.patpos + zoom);
 		else
-			move_cursor(cursor_down, shift);
+			move_cursor(&cursor_down, shift);
 		break;
 	case VK_OEM_4: { // left bracket - insert code
 		HWND ed = GetDlgItem(hwndEditor, IDC_EDITBOX);
 		DWORD start;
-		SendMessage(ed, EM_GETSEL, (WPARAM)&start, 0);
+		SendMessage(ed, EM_GETSEL, cast(WPARAM)&start, 0);
 		SendMessage(ed, EM_SETSEL, start, start);
-		SendMessage(ed, EM_REPLACESEL, 0, (LPARAM)"[ ");
+		SendMessage(ed, EM_REPLACESEL, 0, cast(LPARAM)"[ ".ptr);
 		SendMessage(ed, EM_SETSEL, start+1, start+1);
 		SetFocus(ed);
 		break;
@@ -1256,12 +1277,13 @@ static void tracker_keydown(WPARAM wParam) {
 		if (shift)
 			paste_sel();
 		else
-			track_insert(1, (BYTE *)"\xC9");
+			track_insert(1, cast(BYTE *)"\xC9".ptr);
 		break;
 	case VK_BACK:
-		if (!move_cursor(cursor_back, FALSE))
+		if (!move_cursor(&cursor_back, FALSE))
 			break;
 		shift = 0;
+		goto case;
 	case VK_DELETE:
 		delete_sel(shift);
 		break;
@@ -1312,13 +1334,13 @@ static void tracker_keydown(WPARAM wParam) {
 	}
 }
 
-LRESULT CALLBACK TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+extern(Windows) LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE: hwndTracker = hWnd; break;
 	case WM_DESTROY: hwndTracker = NULL; break;
 	case WM_KEYDOWN: tracker_keydown(wParam); break;
 	case WM_MOUSEWHEEL:
-		scroll_to(state.patpos - (zoom * (short)HIWORD(wParam)) / WHEEL_DELTA);
+		scroll_to(state.patpos - (zoom * cast(short)HIWORD(wParam)) / WHEEL_DELTA);
 		break;
 	case WM_VSCROLL:
 		switch (LOWORD(wParam)) {
@@ -1327,6 +1349,7 @@ LRESULT CALLBACK TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 			case SB_PAGEUP: scroll_to(state.patpos - 96); break;
 			case SB_PAGEDOWN: scroll_to(state.patpos + 96); break;
 			case SB_THUMBTRACK: scroll_to(HIWORD(wParam)); break;
+			default: break;
 		}
 		break;
 	case WM_SIZE:
@@ -1362,46 +1385,46 @@ LRESULT CALLBACK TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 	return 0;
 }
 
-static HDC hdcState;
+private HDC hdcState;
 
-static void show_state(int pos, const char *buf) {
-	static const WORD xt[] = { 20, 80, 180, 240, 300, 360 };
+private void show_state(int pos, const char *buf) nothrow {
+	static const WORD[6] xt = [ 20, 80, 180, 240, 300, 360 ];
 	RECT rc;
 	rc.left = xt[pos >> 4];
 	rc.top = (pos & 15) * font_height + 1;
 	rc.right = rc.left + 60;
 	rc.bottom = rc.top + font_height;
-	ExtTextOut(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, buf, strlen(buf), NULL);
+	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], strlen(buf), NULL);
 }
 
-static void show_simple_state(int pos, BYTE value) {
-	char buf[3];
-	sprintf(buf, "%02X", value);
-	show_state(pos, buf);
+private void show_simple_state(int pos, BYTE value) nothrow {
+	char[3] buf;
+	sprintf(&buf[0], "%02X", value);
+	show_state(pos, &buf[0]);
 }
 
-static void show_slider_state(int pos, struct slider *s) {
-	char buf[9];
-	if (s->cycles)
-		sprintf(buf, "%02X -> %02X", s->cur >> 8, s->target);
+private void show_slider_state(int pos, slider *s) nothrow {
+	char[9] buf;
+	if (s.cycles)
+		sprintf(&buf[0], "%02X . %02X", s.cur >> 8, s.target);
 	else
-		sprintf(buf, "%02X", s->cur >> 8);
-	show_state(pos, buf);
+		sprintf(&buf[0], "%02X", s.cur >> 8);
+	show_state(pos, &buf[0]);
 }
 
-static void show_oscillator_state(int pos, BYTE start, BYTE speed, BYTE range) {
-	char buf[9];
+private void show_oscillator_state(int pos, BYTE start, BYTE speed, BYTE range) nothrow {
+	char[9] buf;
 	if (range)
-		sprintf(buf, "%02X %02X %02X", start, speed, range);
+		sprintf(&buf[0], "%02X %02X %02X", start, speed, range);
 	else
-		strcpy(buf, "Off");
-	show_state(pos, buf);
+		strcpy(&buf[0], "Off");
+	show_state(pos, &buf[0]);
 }
 
-static void CALLBACK MidiInProc(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
+extern(Windows) private void MidiInProc2(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) nothrow {
 	if (wMsg == MIM_DATA)
 	{
-		unsigned char
+		ubyte
 			eventType = (dwParam1 & 0xFF),
 			param1 = (dwParam1 >> 8) & 0xFF,
 			param2 = (dwParam1 >> 16) & 0xFF;
@@ -1415,34 +1438,35 @@ static void CALLBACK MidiInProc(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance,
 					&& note > 0 && note < 0x48)	// Make sure it's within range.
 					addOrInsertNote(note);
 				break;
+			default: break;
 			}
 		}
 	}
 }
 
-LRESULT CALLBACK StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	static const char *const gs[] = {
+extern(Windows) LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+	static immutable char*[4] gs = [
 		"Volume:", "Tempo:", "Transpose:", "CA inst.:"
-	};
-	static const char *const cs1[] = {
+	];
+	static immutable char*[6] cs1 = [
 		"Volume:", "Panning:", "Transpose:",
 		"Instrument:", "Vibrato:", "Tremolo:"
-	};
-	static const char *const cs2[] = {
+	];
+	static immutable char*[6] cs2 = [
 		"Note length:", "Note style:", "Fine tune:",
 		"Subroutine:", "Vib. fadein:", "Portamento:"
-	};
+	];
 
 	switch (uMsg) {
 	case WM_CREATE:
 		hwndState = hWnd;
 		create_controls(hWnd, &state_template, lParam);
 		closeMidiInDevice();
-		openMidiInDevice(midiDevice, MidiInProc);
+		openMidiInDevice(midiDevice, &MidiInProc2);
 		break;
 	case WM_ERASEBKGND: {
 		DefWindowProc(hWnd, uMsg, wParam, lParam);
-		hdcState = (HDC)wParam;
+		hdcState = cast(HDC)wParam;
 		set_up_hdc(hdcState);
 		int i;
 		for (i = 0x01; i <= 0x04; i++) show_state(i, gs[i-0x01]);
@@ -1452,7 +1476,7 @@ LRESULT CALLBACK StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		return 1;
 	}
 	case WM_PAINT: {
-		char buf[11];
+		char[11] buf;
 		hdcState = BeginPaint(hWnd, &ps);
 		set_up_hdc(hdcState);
 
@@ -1461,28 +1485,28 @@ LRESULT CALLBACK StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		show_simple_state(0x13, state.transpose);
 		show_simple_state(0x14, state.first_CA_inst);
 
-		struct channel_state *c = &state.chan[cursor_chan];
-		show_slider_state(0x31, &c->volume);
-		show_slider_state(0x32, &c->panning);
-		show_simple_state(0x33, c->transpose);
-		show_simple_state(0x34, c->inst);
-		show_oscillator_state(0x35, c->vibrato_start, c->vibrato_speed, c->vibrato_max_range);
-		show_oscillator_state(0x36, c->tremolo_start, c->tremolo_speed, c->tremolo_range);
-		show_simple_state(0x51, c->note_len);
-		show_simple_state(0x52, c->note_style);
-		show_simple_state(0x53, c->finetune);
-		if (c->sub_count) {
-			sprintf(buf, "%d x%d", c->sub_start, c->sub_count);
-			show_state(0x54, buf);
+		channel_state *c = &state.chan[cursor_chan];
+		show_slider_state(0x31, &c.volume);
+		show_slider_state(0x32, &c.panning);
+		show_simple_state(0x33, c.transpose);
+		show_simple_state(0x34, c.inst);
+		show_oscillator_state(0x35, c.vibrato_start, c.vibrato_speed, c.vibrato_max_range);
+		show_oscillator_state(0x36, c.tremolo_start, c.tremolo_speed, c.tremolo_range);
+		show_simple_state(0x51, c.note_len);
+		show_simple_state(0x52, c.note_style);
+		show_simple_state(0x53, c.finetune);
+		if (c.sub_count) {
+			sprintf(&buf[0], "%d x%d", c.sub_start, c.sub_count);
+			show_state(0x54, &buf[0]);
 		} else {
 			show_state(0x54, "No");
 		}
-		show_simple_state(0x55, c->vibrato_fadein);
-		if (c->port_length)
-			sprintf(buf, "%02X %02X %02X", c->port_start, c->port_length, c->port_range);
+		show_simple_state(0x55, c.vibrato_fadein);
+		if (c.port_length)
+			sprintf(&buf[0], "%02X %02X %02X", c.port_start, c.port_length, c.port_range);
 		else
-			strcpy(buf, "Off");
-		show_state(0x56, buf);
+			strcpy(&buf[0], "Off");
+		show_state(0x56, &buf[0]);
 		reset_hdc(hdcState);
 		EndPaint(hWnd, &ps);
 		break;

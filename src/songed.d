@@ -1,11 +1,20 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "ebmusv2.h"
+import core.stdc.stdio;
+import core.stdc.stdlib;
+import core.stdc.string;
+import core.sys.windows.windows;
+import ebmusv2;
+import structs;
+import main;
+import misc;
+import parser;
+import play;
+import song;
 
-void order_insert(int pos, int pat) {
-	int *p = array_insert(&cur_song.order, &cur_song.order_length,
-		sizeof(int), pos);
+extern(C):
+
+void order_insert(int pos, int pat) nothrow {
+	int *p = cast(int*)array_insert(cast(void**)&cur_song.order, &cur_song.order_length,
+		int.sizeof, pos);
 	*p = pat;
 
 	if (cur_song.repeat_pos >= pos)
@@ -17,9 +26,9 @@ void order_insert(int pos, int pat) {
 	}
 }
 
-void order_delete(int pos) {
+void order_delete(int pos) nothrow {
 	memmove(&cur_song.order[pos], &cur_song.order[pos+1],
-		(--cur_song.order_length - pos) * sizeof(int));
+		(--cur_song.order_length - pos) * int.sizeof);
 	if (cur_song.repeat_pos > pos)
 		cur_song.repeat_pos--;
 	if (state.ordnum > pos) {
@@ -28,9 +37,9 @@ void order_delete(int pos) {
 	}
 }
 
-struct track *pattern_insert(int pat) {
-	cur_song.pattern = realloc(cur_song.pattern, ++cur_song.patterns * sizeof(struct track) * 8);
-	memmove(&cur_song.pattern[pat+1], &cur_song.pattern[pat], (cur_song.patterns - (pat+1)) * sizeof(struct track) * 8);
+track *pattern_insert(int pat) nothrow {
+	cur_song.pattern = cast(track[8]*)realloc(cur_song.pattern, ++cur_song.patterns * track.sizeof * 8);
+	memmove(&cur_song.pattern[pat+1], &cur_song.pattern[pat], (cur_song.patterns - (pat+1)) * track.sizeof * 8);
 
 	// Update the order to reflect the renumbered patterns
 	for (int i = 0; i < cur_song.order_length; i++)
@@ -40,10 +49,10 @@ struct track *pattern_insert(int pat) {
 	return &cur_song.pattern[pat][0];
 }
 
-void pattern_delete(int pat) {
+void pattern_delete(int pat) nothrow {
 	for (int i = 0; i < 8; i++)
 		free(cur_song.pattern[pat][i].track);
-	memmove(&cur_song.pattern[pat], &cur_song.pattern[pat+1], (--cur_song.patterns - pat) * sizeof(struct track) * 8);
+	memmove(&cur_song.pattern[pat], &cur_song.pattern[pat+1], (--cur_song.patterns - pat) * track.sizeof * 8);
 
 	for (int i = 0; i < cur_song.order_length; ) {
 		if (cur_song.order[i] == pat) {
@@ -55,9 +64,9 @@ void pattern_delete(int pat) {
 	}
 }
 
-BOOL split_pattern(int pos) {
-	struct song_state split_state;
-	char buf[32];
+BOOL split_pattern(int pos) nothrow {
+	song_state split_state;
+	char[32] buf;
 	int ch;
 	if (pos == 0) return FALSE;
 	split_state = pattop_state;
@@ -65,24 +74,24 @@ BOOL split_pattern(int pos) {
 		if (!do_cycle_no_sound(&split_state)) return FALSE;
 	}
 	for (ch = 0; ch < 8; ch++) {
-		struct channel_state *c = &split_state.chan[ch];
-		if (c->sub_count && *c->ptr != '\0') {
-			sprintf(buf, "Track %d is inside a subroutine", ch);
-			MessageBox2(buf, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
+		channel_state *c = &split_state.chan[ch];
+		if (c.sub_count && *c.ptr != '\0') {
+			sprintf(&buf[0], "Track %d is inside a subroutine", ch);
+			MessageBox2(&buf[0], cast(char*)"Cannot split".ptr, 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
-		if (c->next != 0) {
-			sprintf(buf, "Track %d is inside a note", ch);
-			MessageBox2(buf, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
+		if (c.next != 0) {
+			sprintf(&buf[0], "Track %d is inside a note", ch);
+			MessageBox2(&buf[0], cast(char*)"Cannot split".ptr, 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
 	}
 	int this_pat = cur_song.order[split_state.ordnum];
-	struct track *ap = pattern_insert(this_pat + 1);
-	struct track *bp = ap - 8;
+	track *ap = pattern_insert(this_pat + 1);
+	track *bp = ap - 8;
 	for (ch = 0; ch < 8; ch++) {
-		struct channel_state *c = &split_state.chan[ch];
-		BYTE *splitptr = c->sub_count ? c->sub_ret : c->ptr;
+		channel_state *c = &split_state.chan[ch];
+		BYTE *splitptr = c.sub_count ? c.sub_ret : c.ptr;
 		if (splitptr == NULL) {
 			ap[ch].size = 0;
 			ap[ch].track = NULL;
@@ -91,7 +100,7 @@ BOOL split_pattern(int pos) {
 		int before_size = splitptr - bp[ch].track;
 		int after_size = bp[ch].size - before_size;
 
-		int after_subcount = c->sub_count ? c->sub_count - 1 : 0;
+		int after_subcount = c.sub_count ? c.sub_count - 1 : 0;
 		if (after_subcount) {
 			after_size += 4;
 			splitptr -= 4;
@@ -99,9 +108,9 @@ BOOL split_pattern(int pos) {
 		}
 
 		ap[ch].size = after_size;
-		ap[ch].track = memcpy(malloc(after_size + 1), splitptr, after_size + 1);
+		ap[ch].track = cast(ubyte*)memcpy(malloc(after_size + 1), splitptr, after_size + 1);
 		if (after_subcount)
-			ap[ch].track[3] = after_subcount;
+			ap[ch].track[3] = cast(ubyte)after_subcount;
 
 		bp[ch].size = before_size;
 		bp[ch].track[before_size] = 0;
@@ -112,15 +121,15 @@ BOOL split_pattern(int pos) {
 	return TRUE;
 }
 
-BOOL join_patterns() {
-	char buf[60];
+BOOL join_patterns() nothrow {
+	char[60] buf;
 	if (state.ordnum+1 == cur_song.order_length)
 		return FALSE;
 	int this_pat = cur_song.order[state.ordnum];
 	int next_pat = cur_song.order[state.ordnum+1];
 	int i;
 	if (this_pat == next_pat) {
-		MessageBox2("Next pattern is same as current", "Cannot join", 48);
+		MessageBox2(cast(char*)"Next pattern is same as current".ptr, cast(char*)"Cannot join".ptr, 48);
 		return FALSE;
 	}
 	for (i = 0; i < cur_song.order_length; i++) {
@@ -131,22 +140,22 @@ BOOL join_patterns() {
 			 || cur_song.order[i] != next_pat) goto nonconsec;
 		} else if (cur_song.order[i] == next_pat) {
 nonconsec:
-			sprintf(buf, "Patterns %d and %d are not always consecutive",
+			sprintf(&buf[0], "Patterns %d and %d are not always consecutive",
 				this_pat, next_pat);
 error:
-			MessageBox2(buf, "Cannot join", 48/*MB_ICONEXCLAMATION*/);
+			MessageBox2(&buf[0], cast(char*)"Cannot join".ptr, 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
 	}
-	struct track *tp = cur_song.pattern[this_pat];
-	struct track *np = cur_song.pattern[next_pat];
+	track *tp = &cur_song.pattern[this_pat][0];
+	track *np = &cur_song.pattern[next_pat][0];
 	for (i = 0; i < 8; i++) {
 		if (tp[i].track == NULL && np[i].track != NULL) {
-			sprintf(buf, "Track %d active in pattern %d but not in %d",
+			sprintf(&buf[0], "Track %d active in pattern %d but not in %d",
 				i, next_pat, this_pat);
 			goto error;
 		} else if (tp[i].track != NULL && np[i].track == NULL) {
-			sprintf(buf, "Track %d active in pattern %d but not in %d",
+			sprintf(&buf[0], "Track %d active in pattern %d but not in %d",
 				i, this_pat, next_pat);
 			goto error;
 		}
@@ -155,7 +164,7 @@ error:
 		if (tp[i].track == NULL) continue;
 		int oldsize = tp[i].size;
 		tp[i].size += np[i].size;
-		tp[i].track = realloc(tp[i].track, tp[i].size + 1);
+		tp[i].track = cast(ubyte*)realloc(tp[i].track, tp[i].size + 1);
 		memcpy(tp[i].track + oldsize, np[i].track, np[i].size + 1);
 	}
 	pattern_delete(next_pat);
@@ -163,7 +172,7 @@ error:
 }
 
 // Check to see if a part of a track can be made into a subroutine
-static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) {
+static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) nothrow {
 	if (size % subsize != 0) return 0;
 	int cnt = size / subsize;
 	if (cnt > 255) return 0;
@@ -174,17 +183,17 @@ static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) {
 	return cnt;
 }
 
-int create_sub(BYTE *start, BYTE *end, int *count) {
+int create_sub(BYTE *start, BYTE *end, int *count) nothrow {
 	int size = end - start;
 	int sub;
 	int subsize;
 	int cnt;
 
 	for (sub = 0; sub < cur_song.subs; sub++) {
-		struct track *t = &cur_song.sub[sub];
-		subsize = t->size;
+		track *t = &cur_song.sub[sub];
+		subsize = t.size;
 		if (subsize == 0) continue;
-		cnt = check_repeat(t->track, subsize, start, size);
+		cnt = check_repeat(t.track, subsize, start, size);
 		if (cnt) {
 			*count = cnt;
 			return sub;
@@ -201,11 +210,11 @@ int create_sub(BYTE *start, BYTE *end, int *count) {
 		cnt = check_repeat(start, subsize, start, size);
 		// eventually p will reach end, and this must succeed
 		if (cnt) {
-			struct track *t = array_insert(&cur_song.sub, &cur_song.subs,
-				sizeof(struct track), sub);
-			t->size = subsize;
-			t->track = memcpy(malloc(subsize + 1), start, subsize);
-			t->track[subsize] = '\0';
+			track *t = cast(track*)array_insert(cast(void**)&cur_song.sub, &cur_song.subs,
+				track.sizeof, sub);
+			t.size = subsize;
+			t.track = cast(ubyte*)memcpy(malloc(subsize + 1), start, subsize);
+			t.track[subsize] = '\0';
 			*count = cnt;
 			return sub;
 		}

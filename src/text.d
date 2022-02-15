@@ -1,10 +1,17 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "ebmusv2.h"
+import core.stdc.ctype;
+import core.stdc.stdio;
+import core.stdc.stdlib;
+import core.stdc.string;
+import core.sys.windows.windows;
+import ebmusv2;
+import structs;
+import misc;
+import parser;
+import song;
 
-static int unhex(int chr) {
+extern(C):
+
+private int unhex(int chr) nothrow {
 	if (chr >= '0' && chr <= '9')
 		return chr - '0';
 	chr |= 0x20; // fold to lower case
@@ -13,8 +20,8 @@ static int unhex(int chr) {
 	return -1;
 }
 
-int calc_track_size_from_text(char *p) {
-	char buf[60];
+int calc_track_size_from_text(char *p) nothrow {
+	char[60] buf = 0;
 	int size = 0;
 	while (*p) {
 		int c = *p++;
@@ -28,8 +35,8 @@ int calc_track_size_from_text(char *p) {
 			if (*p == ',') strtol(p + 1, &p, 10);
 			size += 4;
 		} else {
-			sprintf(buf, "Bad character: '%c'", c);
-			MessageBox2(buf, NULL, 48);
+			sprintf(&buf[0], "Bad character: '%c'", c);
+			MessageBox2(&buf[0], NULL, 48);
 			return -1;
 		}
 	}
@@ -37,7 +44,7 @@ int calc_track_size_from_text(char *p) {
 }
 
 // returns 1 if successful
-BOOL text_to_track(char *str, struct track *t, BOOL is_sub) {
+BOOL text_to_track(char *str, track *t, BOOL is_sub) nothrow {
 	BYTE *data;
 	int size = calc_track_size_from_text(str);
 	if (size < 0)
@@ -47,7 +54,7 @@ BOOL text_to_track(char *str, struct track *t, BOOL is_sub) {
 	if (size == 0 && !is_sub) {
 		data = NULL;
 	} else {
-		data = malloc(size + 1);
+		data = cast(BYTE*)malloc(size + 1);
 		char *p = str;
 		pos = 0;
 		while (*p) {
@@ -56,14 +63,14 @@ BOOL text_to_track(char *str, struct track *t, BOOL is_sub) {
 			if (h >= 0) {
 				int h2 = unhex(*p);
 				if (h2 >= 0) { h = h << 4 | h2; p++; }
-				data[pos++] = h;
+				data[pos++] = cast(BYTE)h;
 			} else if (c == '*') {
 				int sub = strtol(p, &p, 10);
 				int count = *p == ',' ? strtol(p + 1, &p, 10) : 1;
 				data[pos++] = 0xEF;
 				data[pos++] = sub & 0xFF;
-				data[pos++] = sub >> 8;
-				data[pos++] = count;
+				data[pos++] = cast(BYTE)(sub >> 8);
+				data[pos++] = cast(BYTE)(count);
 			}
 		}
 		data[pos] = '\0';
@@ -74,33 +81,34 @@ BOOL text_to_track(char *str, struct track *t, BOOL is_sub) {
 		return FALSE;
 	}
 
-	if (size != t->size || memcmp(data, t->track, size)) {
-		t->size = size;
-		free(t->track);
-		t->track = data;
+	if (size != t.size || memcmp(data, t.track, size)) {
+		t.size = size;
+		free(t.track);
+		t.track = data;
 	} else {
 		free(data);
 	}
 	return TRUE;
 }
 
-// includes ending '\0'
-int text_length(BYTE *start, BYTE *end) {
+//// includes ending '\0'
+int text_length(BYTE *start, BYTE *end) nothrow {
+	import std.experimental.logger;
 	int textlength = 0;
 	for (BYTE *p = start; p < end; ) {
-		int byte = *p;
+		int byte_ = *p;
 		int len;
-		if (byte < 0x80) {
+		if (byte_ < 0x80) {
 			len = p[1] < 0x80 ? 2 : 1;
 			textlength += 3*len + 2;
-		} else if (byte < 0xE0) {
+		} else if (byte_ < 0xE0) {
 			len = 1;
 			textlength += 3;
 		} else {
-			len = 1 + code_length[byte - 0xE0];
-			if (byte == 0xEF) {
-				char buf[12];
-				textlength += sprintf(buf, "*%d,%d ", p[1] | p[2] << 8, p[3]);
+			len = 1 + code_length.ptr[byte_ - 0xE0];
+			if (byte_ == 0xEF) {
+				char[12] buf = 0;
+				textlength += sprintf(&buf[0], "*%d,%d ", p[1] | p[2] << 8, p[3]);
 			} else {
 				textlength += 3*len + 2;
 			}
@@ -110,29 +118,29 @@ int text_length(BYTE *start, BYTE *end) {
 	return textlength;
 }
 
-// convert a track to text. size must not be 0
-void track_to_text(char *out, BYTE *track, int size) {
+//// convert a track to text. size must not be 0
+void track_to_text(char *out_, BYTE *track, int size) nothrow {
 	for (int len, pos = 0; pos < size; pos += len) {
-		int byte = track[pos];
+		int byte_ = track[pos];
 
 		len = next_code(&track[pos]) - &track[pos];
 
-		if (byte == 0xEF) {
+		if (byte_ == 0xEF) {
 			int sub = track[pos+1] | track[pos+2] << 8;
-			out += sprintf(out, "*%d,%d", sub, track[pos + 3]);
+			out_ += sprintf(out_, "*%d,%d", sub, track[pos + 3]);
 		} else {
 			int i;
-			if (byte < 0x80 || byte >= 0xE0) *out++ = '[';
+			if (byte_ < 0x80 || byte_ >= 0xE0) *out_++ = '[';
 			for (i = 0; i < len; i++) {
-				int byte = track[pos + i];
-				if (i != 0) *out++ = ' ';
-				*out++ = "0123456789ABCDEF"[byte >> 4];
-				*out++ = "0123456789ABCDEF"[byte & 15];
+				int byte2_ = track[pos + i];
+				if (i != 0) *out_++ = ' ';
+				*out_++ = "0123456789ABCDEF"[byte2_ >> 4];
+				*out_++ = "0123456789ABCDEF"[byte2_ & 15];
 			}
-			if (byte < 0x80 || byte >= 0xE0) *out++ = ']';
+			if (byte_ < 0x80 || byte_ >= 0xE0) *out_++ = ']';
 		}
 
-		*out++ = ' ';
+		*out_++ = ' ';
 	}
-	out[-1] = '\0';
+	(--out_)[0] = '\0';
 }

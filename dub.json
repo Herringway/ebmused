@@ -1,0 +1,5 @@
+{
+	"description": "earthbound music editor",
+	"name": "ebmused",
+	"sourceFiles": ["src/resource.res"]
+}

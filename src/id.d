@@ -1,0 +1,50 @@
+enum IDM_MENU = 1;
+enum IDM_CONTEXTMENU = 2;
+enum ID_OPEN = 100;
+enum ID_SAVE_ALL = 101;
+enum ID_CLOSE = 102;
+enum ID_IMPORT = 103;
+enum ID_IMPORT_SPC = 104;
+enum ID_EXPORT = 105;
+enum ID_EXPORT_SPC = 106;
+enum ID_EXIT = 107;
+enum ID_UNDO = 110;
+enum ID_CUT = 111;
+enum ID_COPY = 112;
+enum ID_PASTE = 113;
+enum ID_DELETE = 114;
+enum ID_SPLIT_PATTERN = 115;
+enum ID_JOIN_PATTERNS = 116;
+enum ID_TRANSPOSE = 117;
+enum ID_MAKE_SUBROUTINE = 118;
+enum ID_UNMAKE_SUBROUTINE = 119;
+enum ID_INCREMENT_DURATION = 120;
+enum ID_DECREMENT_DURATION = 121;
+enum ID_SET_DURATION_1 = 123;
+enum ID_SET_DURATION_2 = 124;
+enum ID_SET_DURATION_3 = 125;
+enum ID_SET_DURATION_4 = 126;
+enum ID_SET_DURATION_5 = 127;
+enum ID_SET_DURATION_6 = 128;
+enum ID_OPTIONS = 130;
+enum ID_PLAY = 131;
+enum ID_STOP = 132;
+enum ID_CLEAR_SONG = 133;
+enum ID_ZOOM_IN = 140;
+enum ID_ZOOM_OUT = 141;
+enum ID_OCTAVE_1 = 150;
+enum ID_HELP = 160;
+enum ID_ABOUT = 161;
+
+enum IDA_ACCEL = 1;
+
+enum IDD_OPTIONS = 1;
+enum IDC_RATE = 3;
+enum IDC_BUFSIZE = 4;
+
+enum IDD_ABOUT = 2;
+
+enum IDD_TRANSPOSE = 3;
+enum IDC_TRANSPOSE_OFF = 3;
+
+enum IDRC_SPC = 1;

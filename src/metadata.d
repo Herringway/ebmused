@@ -1,18 +1,23 @@
-#include <io.h>
-#include <stdio.h>
-#include <stdlib.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include "ebmusv2.h"
+import core.stdc.stdio;
+import core.stdc.stdlib;
+import core.stdc.string;
+import core.stdc.errno;
+import core.sys.windows.windows;
+import ebmusv2;
+import misc;
+import loadrom;
+import ranges;
 
-char *bgm_title[NUM_SONGS];
-BOOL metadata_changed;
-static char md_filename[MAX_PATH+8];
-FILE *orig_rom;
-char *orig_rom_filename;
-int orig_rom_offset;
+extern(C):
 
-const char *const bgm_orig_title[NUM_SONGS] = {
+__gshared char*[NUM_SONGS] bgm_title;
+__gshared BOOL metadata_changed;
+__gshared private char[MAX_PATH+8] md_filename;
+__gshared FILE *orig_rom;
+__gshared char *orig_rom_filename;
+__gshared int orig_rom_offset;
+
+immutable char*[NUM_SONGS] bgm_orig_title = [
 	"Gas Station",
 	"Your Name, Please",
 	"Choose a File",
@@ -204,17 +209,17 @@ const char *const bgm_orig_title[NUM_SONGS] = {
 	"Sound Stone - Empty (Duplicate Entry)",
 	"Giygas - Breaking Down (Quiet)",
 	"Giygas - Weakening (Quiet)",
-};
+];
 
-BOOL open_orig_rom(char *filename) {
+BOOL open_orig_rom(char *filename) nothrow {
 	FILE *f = fopen(filename, "rb");
 	if (!f) {
 		MessageBox2(strerror(errno), filename, MB_ICONEXCLAMATION);
 		return FALSE;
 	}
-	long size = _filelength(_fileno(f));
+	long size = filelength(f);
 	if (size != rom_size) {
-		MessageBox2("File is not same size as current ROM", filename, MB_ICONEXCLAMATION);
+		MessageBox2(cast(char*)"File is not same size as current ROM".ptr, filename, MB_ICONEXCLAMATION);
 		fclose(f);
 		return FALSE;
 	}
@@ -222,48 +227,46 @@ BOOL open_orig_rom(char *filename) {
 	orig_rom = f;
 	orig_rom_offset = size & 0x200;
 	free(orig_rom_filename);
-	orig_rom_filename = _strdup(filename);
+	orig_rom_filename = strdup(filename);
 	return TRUE;
 }
 
-void load_metadata() {
+void load_metadata() nothrow {
 	for (int i = 0; i < NUM_SONGS; i++)
-		bgm_title[i] = (char *)bgm_orig_title[i];
+		bgm_title[i] = cast(char *)bgm_orig_title[i];
 	metadata_changed = FALSE;
 
 	// We want an absolute path here, so we don't get screwed by
 	// GetOpenFileName's current-directory shenanigans when we update.
 	char *lastpart;
-	GetFullPathName(rom_filename, MAX_PATH, md_filename, &lastpart);
+	GetFullPathNameA(rom_filename, MAX_PATH, &md_filename[0], &lastpart);
 	char *ext = strrchr(lastpart, '.');
 	if (!ext) ext = lastpart + strlen(lastpart);
 	strcpy(ext, ".ebmused");
 
-	FILE *mf = fopen(md_filename, "r");
+	FILE *mf = fopen(&md_filename[0], "r");
 	if (!mf) return;
 
 	int c;
 	while ((c = fgetc(mf)) >= 0) {
-		char buf[MAX_PATH];
-#if MAX_TITLE_LEN >= MAX_PATH
-#error
-#endif
+		char[MAX_PATH] buf;
+static assert(MAX_TITLE_LEN < MAX_PATH);
 		if (c == 'O') {
 			fgetc(mf);
-			fgets(buf, MAX_PATH, mf);
-			{ char *p = strchr(buf, '\n'); if (p) *p = '\0'; }
-			open_orig_rom(buf);
+			fgets(&buf[0], MAX_PATH, mf);
+			{ char *p = strchr(&buf[0], '\n'); if (p) *p = '\0'; }
+			open_orig_rom(&buf[0]);
 		} else if (c == 'R') {
 			int start, end;
-			fscanf(mf, "%X %X", &start, &end);
+			fscanf(mf, "%X %X", cast(uint*)&start, cast(uint*)&end);
 			change_range(start, end, AREA_NON_SPC, AREA_FREE);
-			while ((c = fgetc(mf)) >= 0 && c != '\n');
+			while ((c = fgetc(mf)) >= 0 && c != '\n') {}
 		} else if (c == 'T') {
-			unsigned int bgm;
-			fscanf(mf, "%X %" MAX_TITLE_LEN_STR "[^\n]", &bgm, buf);
+			uint bgm;
+			fscanf(mf, "%X %"~MAX_TITLE_LEN_STR~"[^\n]", &bgm, &buf[0]);
 			if (--bgm < NUM_SONGS)
-				bgm_title[bgm] = _strdup(buf);
-			while ((c = fgetc(mf)) >= 0 && c != '\n');
+				bgm_title[bgm] = strdup(&buf[0]);
+			while ((c = fgetc(mf)) >= 0 && c != '\n') {}
 		} else {
 			printf("unrecognized metadata line %c\n", c);
 		}
@@ -271,11 +274,11 @@ void load_metadata() {
 	fclose(mf);
 }
 
-void save_metadata() {
+void save_metadata() nothrow {
 	if (!metadata_changed) return;
-	FILE *mf = fopen(md_filename, "w");
+	FILE *mf = fopen(&md_filename[0], "w");
 	if (!mf) {
-		MessageBox2(strerror(errno), md_filename, MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno), &md_filename[0], MB_ICONEXCLAMATION);
 		return;
 	}
 
@@ -298,11 +301,11 @@ void save_metadata() {
 
 	int size = ftell(mf);
 	fclose(mf);
-	if (size == 0) remove(md_filename);
+	if (size == 0) remove(&md_filename[0]);
 	metadata_changed = FALSE;
 }
 
-void free_metadata() {
+void free_metadata() nothrow {
 	if (orig_rom) { fclose(orig_rom); orig_rom = NULL; }
 	free(orig_rom_filename);
 	orig_rom_filename = NULL;

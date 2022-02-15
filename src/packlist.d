@@ -1,42 +1,51 @@
-#include <stdio.h>
-#include <stdlib.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#define _WIN32_IE 0x0300
-#include <commctrl.h>
-#include "ebmusv2.h"
+import core.stdc.stdio;
+import core.stdc.stdlib;
+import core.stdc.string;
+import core.sys.windows.windows;
+import core.sys.windows.commctrl;
+import ebmusv2;
+import structs;
+import ctrltbl;
+import misc;
+import main;
+import loadrom;
+import ranges;
+import metadata;
+import packs;
 
-#define IDC_RLIST_CAPTION 10
-#define IDC_ROM_LIST 11
-#define IDC_MLIST_CAPTION 12
-#define IDC_INMEM_LIST 13
+extern(C):
 
-#define IDC_RANGE_OPTS_HDR 20
-#define IDC_RANGE_START 21
-#define IDC_RANGE_TO 22
-#define IDC_RANGE_END 23
-#define IDC_RANGE_ADD 24
-#define IDC_RANGE_REMOVE 25
+enum IDC_RLIST_CAPTION = 10;
+enum IDC_ROM_LIST = 11;
+enum IDC_MLIST_CAPTION = 12;
+enum IDC_INMEM_LIST = 13;
 
-#define IDC_PACK_OPTS_HDR 30
-#define IDC_PACK_SAVE 31
-#define IDC_PACK_ADDRESS 32
-#define IDC_PACK_MOVE 33
-#define IDC_PACK_RESET 34
+enum IDC_RANGE_OPTS_HDR = 20;
+enum IDC_RANGE_START = 21;
+enum IDC_RANGE_TO = 22;
+enum IDC_RANGE_END = 23;
+enum IDC_RANGE_ADD = 24;
+enum IDC_RANGE_REMOVE = 25;
 
-#define IDC_SONG_OPTS_HDR 40
-#define IDC_SONG_ADDRESS 41
-#define IDC_SONG_NEW 42
-#define IDC_SONG_MOVE 43
-#define IDC_SONG_UP 44
-#define IDC_SONG_DOWN 45
-#define IDC_SONG_DEL 46
+enum IDC_PACK_OPTS_HDR = 30;
+enum IDC_PACK_SAVE = 31;
+enum IDC_PACK_ADDRESS = 32;
+enum IDC_PACK_MOVE = 33;
+enum IDC_PACK_RESET = 34;
 
-static HWND rom_list, inmem_list;
-static int sort_by;
-static int inmem_sel;
+enum IDC_SONG_OPTS_HDR = 40;
+enum IDC_SONG_ADDRESS = 41;
+enum IDC_SONG_NEW = 42;
+enum IDC_SONG_MOVE = 43;
+enum IDC_SONG_UP = 44;
+enum IDC_SONG_DOWN = 45;
+enum IDC_SONG_DEL = 46;
 
-static const struct control_desc pack_list_controls[] = {
+private __gshared HWND rom_list, inmem_list;
+private __gshared int sort_by;
+private __gshared int inmem_sel;
+
+static const control_desc[22] pack_list_controls = [
 	//The format here is X position, Y position, height, and width. The negative numbers mean it starts from the bottom
 	//The upper half of the SPC Packs tab - list of all packs in the game
 	{ "Static",   10, 10,100, 18, "All Packs:", IDC_RLIST_CAPTION, 0 },
@@ -69,94 +78,92 @@ static const struct control_desc pack_list_controls[] = {
 	{ "Button",  450,-30, 38, 20, "Up", IDC_SONG_UP, WS_DISABLED }, //Moves the currently-selected song
 	{ "Button",  490,-30, 38, 20, "Down", IDC_SONG_DOWN, WS_DISABLED },
 
-};
+];
 
-static struct window_template pack_list_template = {
-	22, 14, 0, 0, pack_list_controls
-};
+static window_template pack_list_template = window_template(22, 14, 0, 0, &pack_list_controls[0]);
 
-static void show_blocks(HWND packlist, struct pack *p, LV_ITEM *lvi) {
-	char buf[MAX_TITLE_LEN+5];
-	struct block *b = p->blocks;
-	int packno = lvi->lParam >> 16;
-	for (int i = 1; i <= p->block_count; i++, b++) {
-		lvi->mask = LVIF_PARAM;
-		lvi->iSubItem = 0;
-		lvi->lParam = (lvi->lParam & 0xFFFF0000) | i;
-		(void)ListView_InsertItem(packlist, lvi);
-		lvi->mask = LVIF_TEXT;
-		lvi->iSubItem = 1;
-		lvi->pszText = buf;
-		sprintf(buf, "%04X-%04X", b->spc_address, b->spc_address + b->size - 1);
-		(void)ListView_SetItem(packlist, lvi);
-		lvi->iSubItem = 2;
-		sprintf(buf, "%d", b->size);
-		(void)ListView_SetItem(packlist, lvi);
+static void show_blocks(HWND packlist, pack *p, LV_ITEMA *lvi) {
+	char[MAX_TITLE_LEN+5] buf;
+	block *b = p.blocks;
+	int packno = lvi.lParam >> 16;
+	for (int i = 1; i <= p.block_count; i++, b++) {
+		lvi.mask = LVIF_PARAM;
+		lvi.iSubItem = 0;
+		lvi.lParam = (lvi.lParam & 0xFFFF0000) | i;
+		ListView_InsertItemA(packlist, lvi);
+		lvi.mask = LVIF_TEXT;
+		lvi.iSubItem = 1;
+		lvi.pszText = &buf[0];
+		sprintf(&buf[0], "%04X-%04X", b.spc_address, b.spc_address + b.size - 1);
+		ListView_SetItemA(packlist, lvi);
+		lvi.iSubItem = 2;
+		sprintf(&buf[0], "%d", b.size);
+		ListView_SetItemA(packlist, lvi);
 
-		lvi->iSubItem = 4;
-		if (b->spc_address == 0x0500) {
-			lvi->pszText = "Program";
-		} else if (b->spc_address >= 0x6C00 && b->spc_address < 0x6E00) {
-			lvi->pszText = "Sample pointers";
-		} else if (b->spc_address >= 0x6E00 && b->spc_address < 0x6F80) {
-			lvi->pszText = "Instruments";
-		} else if (b->spc_address == 0x6F80) {
-			lvi->pszText = "Note style tables";
-		} else if (b->spc_address >= 0x7000 && b->spc_address <= 0xE800) {
-			lvi->pszText = "Samples";
-		} else if (b->spc_address >= 0x4800 && b->spc_address < 0x6C00) {
-			strcpy(buf, "Unused song");
+		lvi.iSubItem = 4;
+		if (b.spc_address == 0x0500) {
+			lvi.pszText = cast(char*)"Program".ptr;
+		} else if (b.spc_address >= 0x6C00 && b.spc_address < 0x6E00) {
+			lvi.pszText = cast(char*)"Sample pointers".ptr;
+		} else if (b.spc_address >= 0x6E00 && b.spc_address < 0x6F80) {
+			lvi.pszText = cast(char*)"Instruments".ptr;
+		} else if (b.spc_address == 0x6F80) {
+			lvi.pszText = cast(char*)"Note style tables".ptr;
+		} else if (b.spc_address >= 0x7000 && b.spc_address <= 0xE800) {
+			lvi.pszText = cast(char*)"Samples".ptr;
+		} else if (b.spc_address >= 0x4800 && b.spc_address < 0x6C00) {
+			strcpy(&buf[0], "Unused song");
 			for (int song = 0; song < NUM_SONGS; song++) {
-				if (pack_used[song][2] == packno && song_address[song] == b->spc_address) {
-					sprintf(buf, "%02X: %s", song+1, bgm_title[song]);
+				if (pack_used[song][2] == packno && song_address[song] == b.spc_address) {
+					sprintf(&buf[0], "%02X: %s", song+1, bgm_title[song]);
 					break;
 				}
 			}
 		} else {
-			lvi->pszText = "Unknown";
+			lvi.pszText = cast(char*)"Unknown".ptr;
 		}
-		(void)ListView_SetItem(packlist, lvi);
-		lvi->iItem++;
+		ListView_SetItemA(packlist, lvi);
+		lvi.iItem++;
 	}
 }
 
-static void show_or_hide_blocks(HWND packlist, LV_ITEM *lvi) {
-	int packno = HIWORD(lvi->lParam);
-	struct pack *pack = (packlist == rom_list ? rom_packs : inmem_packs) + packno;
+static void show_or_hide_blocks(HWND packlist, LV_ITEMA *lvi) {
+	int packno = HIWORD(lvi.lParam);
+	pack *pack = (packlist == rom_list ? &rom_packs[0] : &inmem_packs[0]) + packno;
 
-	LV_FINDINFO lvfi;
+	LV_FINDINFOA lvfi;
 	lvfi.flags = LVFI_PARAM;
 	lvfi.lParam = packno << 16 | 1;
-	int block = ListView_FindItem(packlist, -1, &lvfi);
+	int block = ListView_FindItemA(packlist, -1, &lvfi);
 	if (block >= 0) {
-		for (int i = 0; i < pack->block_count; i++)
-			(void)ListView_DeleteItem(packlist, block);
+		for (int i = 0; i < pack.block_count; i++)
+			ListView_DeleteItem(packlist, block);
 	} else {
 		show_blocks(packlist, pack, lvi);
 	}
 }
 
-static int CALLBACK comparator(LPARAM first, LPARAM second, LPARAM column) {
-	int p[2] = { HIWORD(first), HIWORD(second) };
-	int val[2];
+extern(Windows) static int comparator(LPARAM first, LPARAM second, LPARAM column) {
+	int[2] p = [ HIWORD(first), HIWORD(second) ];
+	int[2] val;
 	for (int i = 0; i < 2; i++) {
 		int v = 0;
 		if (p[i] == 0xFF) { // Free area
-			struct area *a = &areas[LOWORD(i ? second : first)];
+			Area *a = &areas[LOWORD(i ? second : first)];
 			if (column == 1)
-				v = a->address;
+				v = a.address;
 			else if (column == 2)
-				v = (a+1)->address - a->address;
+				v = (a+1).address - a.address;
 			else if (column == 3)
 				v = -4;
 		} else { // Pack
-			struct pack *rp = &rom_packs[p[i]];
+			pack *rp = &rom_packs[p[i]];
 			if (column == 1)
-				v = rp->start_address;
+				v = rp.start_address;
 			else if (column == 2)
 				v = calc_pack_size(rp);
 			else if (column == 3)
-				v = -rp->status;
+				v = -rp.status;
 		}
 		val[i] = v;
 	}
@@ -181,8 +188,8 @@ static void center_on_item(HWND packlist, LPARAM lParam) {
 		LVIS_FOCUSED | LVIS_SELECTED);
 	// Center the view around the selection
 	POINT pt;
-	(void)ListView_GetItemPosition(packlist, index, &pt);
-	(void)ListView_Scroll(packlist, 0, pt.y - (rc.bottom >> 1));
+	ListView_GetItemPosition(packlist, index, &pt);
+	ListView_Scroll(packlist, 0, pt.y - (rc.bottom >> 1));
 }
 
 static void hide_free_ranges() {
@@ -191,31 +198,31 @@ static void hide_free_ranges() {
 	lvfi.psz = "--";
 	int index;
 	while ((index = ListView_FindItem(rom_list, -1, &lvfi)) >= 0)
-		(void)ListView_DeleteItem(rom_list, index);
+		ListView_DeleteItem(rom_list, index);
 }
 
 static void show_free_ranges() {
-	LV_ITEM lvi;
-	char buf[14];
+	LV_ITEMA lvi;
+	char[14] buf;
 	lvi.iItem = ListView_GetItemCount(rom_list);
 	for (int i = 0; i < area_count; i++) {
 		if (areas[i].pack != AREA_FREE) continue;
 		lvi.mask = LVIF_TEXT | LVIF_PARAM;
-		lvi.pszText = "--";
+		lvi.pszText = cast(char*)"--".ptr;
 		lvi.iSubItem = 0;
 		lvi.lParam = 0xFF0000 | i;
-		(void)ListView_InsertItem(rom_list, &lvi);
+		ListView_InsertItemA(rom_list, &lvi);
 		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 1;
-		lvi.pszText = buf;
-		sprintf(buf, "%06X-%06X", areas[i].address, areas[i+1].address - 1);
-		(void)ListView_SetItem(rom_list, &lvi);
+		lvi.pszText = &buf[0];
+		sprintf(&buf[0], "%06X-%06X", areas[i].address, areas[i+1].address - 1);
+		ListView_SetItemA(rom_list, &lvi);
 		lvi.iSubItem = 2;
-		sprintf(buf, "%d", areas[i+1].address - areas[i].address);
-		(void)ListView_SetItem(rom_list, &lvi);
+		sprintf(&buf[0], "%d", areas[i+1].address - areas[i].address);
+		ListView_SetItemA(rom_list, &lvi);
 		lvi.iSubItem = 3;
-		lvi.pszText = "Free";
-		(void)ListView_SetItem(rom_list, &lvi);
+		lvi.pszText = cast(char*)"Free".ptr;
+		ListView_SetItemA(rom_list, &lvi);
 		lvi.iItem++;
 	}
 }
@@ -223,45 +230,45 @@ static void show_free_ranges() {
 static void show_rom_packs() {
 	HWND packlist = rom_list;
 
-	LVITEM lvi;
+	LVITEMA lvi;
 	lvi.iItem = 0;
-	char buf[14];
+	char[14] buf;
 	SendMessage(packlist, WM_SETREDRAW, FALSE, 0);
 	for (int i = 0; i < NUM_PACKS; i++) {
-		struct pack *pack = &rom_packs[i];
+		pack *pack = &rom_packs[i];
 
 		lvi.mask = LVIF_TEXT | LVIF_PARAM;
 		lvi.lParam = i << 16;
-		lvi.pszText = buf;
+		lvi.pszText = &buf[0];
 		lvi.iSubItem = 0;
-		sprintf(buf, "%02X", i);
-		(void)ListView_InsertItem(packlist, &lvi);
+		sprintf(&buf[0], "%02X", i);
+		ListView_InsertItemA(packlist, &lvi);
 
 		int size = calc_pack_size(pack);
 		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 1;
-		sprintf(buf, "%06X-%06X",
-			pack->start_address, pack->start_address + size - 1);
-		(void)ListView_SetItem(packlist, &lvi);
+		sprintf(&buf[0], "%06X-%06X",
+			pack.start_address, pack.start_address + size - 1);
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iSubItem = 2;
-		sprintf(buf, "%d", size);
-		(void)ListView_SetItem(packlist, &lvi);
+		sprintf(&buf[0], "%d", size);
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iSubItem = 3;
-		static char *const status_text[] = {
+		static const(char)*[4] status_text = [
 			"Original", "Modified", "Invalid", "Saved"
-		};
-		lvi.pszText = status_text[pack->status];
-		(void)ListView_SetItem(packlist, &lvi);
+		];
+		lvi.pszText = cast(char*)status_text[pack.status];
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iItem++;
 		if (i == packs_loaded[2] && !(inmem_packs[i].status & IPACK_CHANGED))
 			show_blocks(packlist, pack, &lvi);
 	}
-	show_free_ranges(packlist);
+	show_free_ranges(/*packlist*/);
 	if (sort_by != 0)
-		(void)ListView_SortItems(packlist, comparator, sort_by);
+		ListView_SortItems(packlist, &comparator, sort_by);
 
 	SendMessage(packlist, WM_SETREDRAW, TRUE, 0);
 	center_on_item(packlist, packs_loaded[2] << 16 | (1 + current_block));
@@ -270,41 +277,41 @@ static void show_rom_packs() {
 
 static void show_inmem_packs() {
 	HWND packlist = inmem_list;
-	LVITEM lvi;
+	LVITEMA lvi;
 
 	lvi.iItem = 0;
 	SendMessage(packlist, WM_SETREDRAW, FALSE, 0);
 	for (int i = 0; i < NUM_PACKS; i++) {
-		struct pack *pack = &inmem_packs[i];
-		if (!(pack->status & IPACK_CHANGED)) continue;
-		char buf[25];
+		pack *pack = &inmem_packs[i];
+		if (!(pack.status & IPACK_CHANGED)) continue;
+		char[25] buf;
 
 		lvi.mask = LVIF_TEXT | LVIF_PARAM;
 		lvi.lParam = i << 16;
-		lvi.pszText = buf;
+		lvi.pszText = &buf[0];
 		lvi.iSubItem = 0;
-		sprintf(buf, "%02X", i);
-		(void)ListView_InsertItem(packlist, &lvi);
+		sprintf(&buf[0], "%02X", i);
+		ListView_InsertItemA(packlist, &lvi);
 
 		int size = calc_pack_size(pack);
 		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 1;
-		sprintf(buf, "%06X-%06X", pack->start_address, pack->start_address + size - 1);
-		(void)ListView_SetItem(packlist, &lvi);
+		sprintf(&buf[0], "%06X-%06X", pack.start_address, pack.start_address + size - 1);
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iSubItem = 2;
-		sprintf(buf, "%d", size);
-		(void)ListView_SetItem(packlist, &lvi);
+		sprintf(&buf[0], "%d", size);
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iSubItem = 3;
-		int conflict = check_range(pack->start_address, pack->start_address + size, i);
+		int conflict = check_range(pack.start_address, pack.start_address + size, i);
 		switch (conflict) {
-		case AREA_NOT_IN_FILE: lvi.pszText = "Invalid address"; break;
-		case AREA_NON_SPC: lvi.pszText = "Out of range"; break;
-		case AREA_FREE: lvi.pszText = "Ready to save"; break;
-		default: sprintf(buf, "Overlap with %02X", conflict); break;
+		case AREA_NOT_IN_FILE: lvi.pszText = cast(char*)"Invalid address".ptr; break;
+		case AREA_NON_SPC: lvi.pszText = cast(char*)"Out of range".ptr; break;
+		case AREA_FREE: lvi.pszText = cast(char*)"Ready to save".ptr; break;
+		default: sprintf(&buf[0], "Overlap with %02X", conflict); break;
 		}
-		(void)ListView_SetItem(packlist, &lvi);
+		ListView_SetItemA(packlist, &lvi);
 
 		lvi.iItem++;
 		if (i == packs_loaded[2])
@@ -317,11 +324,12 @@ static void show_inmem_packs() {
 
 static void packs_saved() {
 	inmem_sel = -1;
-	(void)ListView_DeleteAllItems(inmem_list);
+	ListView_DeleteAllItems(inmem_list);
 	show_inmem_packs();
 }
 
-LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+extern(Windows) LRESULT PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+	try {
 	switch (uMsg) {
 	case WM_CREATE: {
 		inmem_sel = -1;
@@ -329,17 +337,17 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
 		rom_list = GetDlgItem(hWnd, IDC_ROM_LIST);
 		inmem_list = GetDlgItem(hWnd, IDC_INMEM_LIST);
-		(void)ListView_SetExtendedListViewStyle(rom_list, LVS_EX_FULLROWSELECT);
-		(void)ListView_SetExtendedListViewStyle(inmem_list, LVS_EX_FULLROWSELECT);
-		LVCOLUMN lvc;
+		ListView_SetExtendedListViewStyle(rom_list, LVS_EX_FULLROWSELECT);
+		ListView_SetExtendedListViewStyle(inmem_list, LVS_EX_FULLROWSELECT);
+		LVCOLUMNA lvc;
 		lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 		for (int i = 0; i < 5; i++) {
-			static char *const colname[] = { "#", "Address", "Size", "Status", "Description" };
-			static const WORD cx[] = { 30, 120, 60, 100, 270 };
-			lvc.pszText = colname[i];
+			static const(char)*[5] colname = [ "#", "Address", "Size", "Status", "Description" ];
+			static const WORD[5] cx = [ 30, 120, 60, 100, 270 ];
+			lvc.pszText = cast(char*)colname[i];
 			lvc.cx = cx[i];
-			(void)ListView_InsertColumn(rom_list, i, &lvc);
-			(void)ListView_InsertColumn(inmem_list, i, &lvc);
+			ListView_InsertColumnA(rom_list, i, &lvc);
+			ListView_InsertColumnA(inmem_list, i, &lvc);
 		}
 		break;
 	}
@@ -351,21 +359,21 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 		break;
 	case WM_ROM_CLOSED:
 		inmem_sel = -1;
-		(void)ListView_DeleteAllItems(rom_list);
-		(void)ListView_DeleteAllItems(inmem_list);
+		ListView_DeleteAllItems(rom_list);
+		ListView_DeleteAllItems(inmem_list);
 		for (int i = 20; i <= 46; i++)
 			EnableWindow(GetDlgItem(hWnd, i), FALSE);
 		break;
 	case WM_PACKS_SAVED:
 	update_all:
 		packs_saved();
-		(void)ListView_DeleteAllItems(rom_list);
+		ListView_DeleteAllItems(rom_list);
 		show_rom_packs();
-		// fallthrough
+		goto case;
 	case WM_SONG_IMPORTED:
 	update_inmem:
 		inmem_sel = -1;
-		(void)ListView_DeleteAllItems(inmem_list);
+		ListView_DeleteAllItems(inmem_list);
 		show_inmem_packs();
 		break;
 	case WM_SIZE:
@@ -374,16 +382,16 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 		move_controls(hWnd, &pack_list_template, lParam);
 		break;
 	case WM_NOTIFY: {
-		NM_LISTVIEW *nm = (LPNM_LISTVIEW)lParam;
-		HWND hwnd = nm->hdr.hwndFrom;
-		UINT code = nm->hdr.code;
+		NMLISTVIEW *nm = cast(LPNMLISTVIEW)lParam;
+		HWND hwnd = nm.hdr.hwndFrom;
+		UINT code = nm.hdr.code;
 		if (code == LVN_ITEMACTIVATE) {
 			int index = ListView_GetNextItem(hwnd, -1, LVNI_SELECTED);
-			LV_ITEM lvi;
+			LV_ITEMA lvi;
 			lvi.mask = LVIF_PARAM;
 			lvi.iItem = index;
 			lvi.iSubItem = 0;
-			if (!ListView_GetItem(hwnd, &lvi)) break;
+			if (!ListView_GetItemA(hwnd, &lvi)) break;
 			if (LOWORD(lvi.lParam) == 0) {
 				// Double-clicked on a pack - show/hide its blocks
 				lvi.iItem++;
@@ -400,13 +408,13 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 					select_block(block);
 			}
 		} else if (code == LVN_COLUMNCLICK) {
-			sort_by = nm->iSubItem;
-			(void)ListView_SortItems(hwnd, comparator, sort_by);
+			sort_by = nm.iSubItem;
+			ListView_SortItems(hwnd, &comparator, sort_by);
 			int index = ListView_GetNextItem(hwnd, -1, LVNI_SELECTED);
-			(void)ListView_EnsureVisible(hwnd, index, TRUE);
+			ListView_EnsureVisible(hwnd, index, TRUE);
 		} else if (code == LVN_ITEMCHANGED) {
-			if (hwnd == inmem_list && nm->uNewState & LVIS_SELECTED) {
-				inmem_sel = nm->lParam;
+			if (hwnd == inmem_list && nm.uNewState & LVIS_SELECTED) {
+				inmem_sel = nm.lParam;
 				printf("Selected %x\n", inmem_sel);
 				for (int i = 30; i <= 46; i++) {
 					EnableWindow(GetDlgItem(hWnd, i), TRUE);
@@ -419,8 +427,8 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	}
 	case WM_COMMAND: {
 		WORD id = LOWORD(wParam);
-		int pack = HIWORD(inmem_sel);
-		struct pack *p = &inmem_packs[pack];
+		int pack_ = HIWORD(inmem_sel);
+		pack *p = &inmem_packs[pack_];
 		switch (id) {
 		case IDC_RANGE_ADD:
 		case IDC_RANGE_REMOVE: {
@@ -439,7 +447,7 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 			goto update_inmem;
 		}
 		case IDC_PACK_SAVE:
-			if (save_pack(pack)) {
+			if (save_pack(pack_)) {
 				save_metadata();
 				goto update_all;
 			}
@@ -447,23 +455,23 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 		case IDC_PACK_MOVE: {
 			int addr = GetDlgItemHex(hWnd, IDC_PACK_ADDRESS);
 			if (addr < 0) break;
-			printf("moving %d to %x\n", pack, addr);
-			p->start_address = addr;
+			printf("moving %d to %x\n", pack_, addr);
+			p.start_address = addr;
 			goto update_inmem;
 		}
 		case IDC_PACK_RESET:
-			if (pack == packs_loaded[2]) {
+			if (pack_ == packs_loaded[2]) {
 				load_songpack(0xFF);
 				select_block(-1);
 			}
-			free_pack(&inmem_packs[pack]);
+			free_pack(&inmem_packs[pack_]);
 			goto update_inmem;
 		case IDC_SONG_NEW: {
 			int addr = GetDlgItemHex(hWnd, IDC_SONG_ADDRESS);
 			if (addr < 0) break;
-			load_songpack(pack);
-			struct block b = { 21, addr, calloc(21, 1) };
-			*(WORD *)b.data = addr + 4;
+			load_songpack(pack_);
+			block b = { 21, cast(ushort)addr, cast(ubyte*)calloc(21, 1) };
+			*cast(WORD *)b.data = cast(ushort)(addr + 4);
 			new_block(&b);
 			goto update_inmem;
 		}
@@ -471,11 +479,11 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 			int addr = GetDlgItemHex(hWnd, IDC_SONG_ADDRESS);
 			if (addr < 0) break;
 			int block = LOWORD(inmem_sel) - 1;
-			if (block < 0 || block >= p->block_count) break;
-			load_songpack(pack);
+			if (block < 0 || block >= p.block_count) break;
+			load_songpack(pack_);
 			select_block(block);
 			if (cur_song.order_length) {
-				cur_song.address = addr;
+				cur_song.address = cast(ushort)addr;
 				cur_song.changed = TRUE;
 				save_cur_song_to_pack();
 				goto update_inmem;
@@ -485,25 +493,28 @@ LRESULT CALLBACK PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 		case IDC_SONG_UP:
 		case IDC_SONG_DOWN: {
 			int from = LOWORD(inmem_sel) - 1;
-			if (from < 0 || from >= p->block_count) break;
+			if (from < 0 || from >= p.block_count) break;
 			int to = from + (id == IDC_SONG_UP ? -1 : 1);
-			if (to < 0 || to >= p->block_count) break;
-			load_songpack(pack);
+			if (to < 0 || to >= p.block_count) break;
+			load_songpack(pack_);
 			select_block(from);
 			move_block(to);
 			goto update_inmem;
 		}
 		case IDC_SONG_DEL: {
 			int block = LOWORD(inmem_sel) - 1;
-			if (block < 0 || block >= p->block_count) break;
-			load_songpack(pack);
+			if (block < 0 || block >= p.block_count) break;
+			load_songpack(pack_);
 			delete_block(block);
 			goto update_inmem;
 		}
+		default: break;
 		}
 	}
+	goto default;
 	default:
 		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
+} catch (Exception) {}
 	return 0;
 }

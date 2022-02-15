@@ -45,3 +45,8 @@ x64/
 *.db
 *.opendb
 *.vcxproj.*
+
+# Stuff
+*.res
+*.log
+.dub
