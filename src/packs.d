@@ -3,6 +3,7 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import structs;
 import misc;
@@ -195,7 +196,7 @@ BOOL save_pack(int pack_) nothrow {
 		return FALSE;
 
 	if (!orig_rom) {
-		MessageBox2(cast(char*)"Before saving a pack, the original ROM file needs to be specified so that it can be used to ensure that no unused remnants of previous versions of the pack are left in the file in such a way that they would increase the patch size.".ptr, cast(char*)"Save".ptr, 48);
+		MessageBox2("Before saving a pack, the original ROM file needs to be specified so that it can be used to ensure that no unused remnants of previous versions of the pack are left in the file in such a way that they would increase the patch size.", "Save", 48);
 		return FALSE;
 	}
 	int size = calc_pack_size(p);
@@ -209,7 +210,7 @@ BOOL save_pack(int pack_) nothrow {
 			strcpy(p2, "The ROM address is not in a range designated for SPC data");
 		else
 			sprintf(p2, "Would overlap with pack %02X", conflict);
-		MessageBox2(&error[0], cast(char*)"Save".ptr, 48);
+		MessageBox2(error.fromStringz, "Save", 48);
 		return FALSE;
 	}
 
@@ -220,7 +221,7 @@ BOOL save_pack(int pack_) nothrow {
 	fseek(orig_rom, old_start - 0xC00000 + orig_rom_offset, SEEK_SET);
 	if (!fread(filler, old_size, 1, orig_rom)) {
 error:
-		MessageBox2(strerror(errno), cast(char*)"Save".ptr, 16);
+		MessageBox2(strerror(errno).fromStringz, "Save", 16);
 		return FALSE;
 	}
 	fseek(rom, old_start - 0xC00000 + rom_offset, SEEK_SET);

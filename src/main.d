@@ -10,6 +10,9 @@ import core.sys.windows.commdlg;
 import core.sys.windows.commctrl;
 
 import std.algorithm.comparison : min;
+import std.exception;
+import std.format;
+import std.string;
 import ebmusv2;
 import sound;
 import misc;
@@ -116,7 +119,7 @@ void tab_selected(int new_) {
 
 private void import_() nothrow {
 	if (packs_loaded[2] >= NUM_PACKS) {
-		MessageBox2(cast(char*)"No song pack selected".ptr, cast(char*)"Import".ptr, MB_ICONEXCLAMATION);
+		MessageBox2("No song pack selected", "Import", MB_ICONEXCLAMATION);
 		return;
 	}
 
@@ -127,13 +130,13 @@ private void import_() nothrow {
 	FILE *f = fopen(file, "rb");
 	auto size = filelength(f);
 	if (!f) {
-		MessageBox2(strerror(errno), cast(char*)"Import".ptr, MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, "Import", MB_ICONEXCLAMATION);
 		return;
 	}
 
 	block b;
 	if (!fread(&b, 4, 1, f) || b.spc_address + b.size > 0x10000 || size != 4 + b.size) {
-		MessageBox2(cast(char*)"File is not an EBmused export".ptr, cast(char*)"Import".ptr, MB_ICONEXCLAMATION);
+		MessageBox2("File is not an EBmused export", "Import", MB_ICONEXCLAMATION);
 		goto err1;
 	}
 	b.data = cast(ubyte*)malloc(b.size);
@@ -181,7 +184,7 @@ err1:
 private void export_() nothrow {
 	block *b = save_cur_song_to_pack();
 	if (!b) {
-		MessageBox2(cast(char*)"No song loaded".ptr, cast(char*)"Export".ptr, MB_ICONEXCLAMATION);
+		MessageBox2("No song loaded", "Export", MB_ICONEXCLAMATION);
 		return;
 	}
 
@@ -190,7 +193,7 @@ private void export_() nothrow {
 
 	FILE *f = fopen(file, "wb");
 	if (!f) {
-		MessageBox2(strerror(errno), cast(char*)"Export".ptr, MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, "Export", MB_ICONEXCLAMATION);
 		return;
 	}
 	fwrite(b, 4, 1, f);
@@ -200,18 +203,18 @@ private void export_() nothrow {
 
 static void export_spc() nothrow {
 	if (cur_song.order_length < 1) {
-		MessageBox2(cast(char*)"No song loaded.".ptr, cast(char*)"Export SPC".ptr, MB_ICONEXCLAMATION);
+		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
 	} else {
 		char *file = open_dialog(&GetSaveFileNameA, cast(char*)"SPC files (*.spc)\0*.spc\0".ptr, cast(char*)"spc".ptr, OFN_OVERWRITEPROMPT);
 		if (file) {
 			FILE *f = fopen(file, "wb");
 			if (!f) {
-				MessageBox2(strerror(errno), cast(char*)"Export SPC".ptr, MB_ICONEXCLAMATION);
+				MessageBox2(strerror(errno).fromStringz, "Export SPC", MB_ICONEXCLAMATION);
 			} else {
 				HRSRC res = FindResource(hinstance, MAKEINTRESOURCE(IDRC_SPC), RT_RCDATA);
 				HGLOBAL res_handle = res ? LoadResource(NULL, res) : NULL;
 				if (!res_handle) {
-					MessageBox2(cast(char*)"Blank SPC could not be loaded.".ptr, cast(char*)"Export SPC".ptr, MB_ICONEXCLAMATION);
+					MessageBox2("Blank SPC could not be loaded.", "Export SPC", MB_ICONEXCLAMATION);
 				} else {
 					BYTE* res_data = cast(BYTE*)LockResource(res_handle);
 					DWORD spc_size = SizeofResource(NULL, res);
@@ -271,8 +274,7 @@ BOOL save_all_packs() nothrow {
 	}
 	if (packs) {
 		SendMessageA(tab_hwnd[current_tab], WM_PACKS_SAVED, 0, 0);
-		sprintf(&buf[0], "%d pack(s) saved", packs);
-		MessageBox2(&buf[0], cast(char*)"Save".ptr, MB_OK);
+		MessageBox2(assumeWontThrow(sformat(buf[], "%d pack(s) saved", packs)), "Save", MB_OK);
 	}
 	save_metadata();
 	return success;
@@ -351,9 +353,9 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			break;
 		case ID_PLAY:
 			if (cur_song.order_length == 0)
-				MessageBox2(cast(char*)"No song loaded".ptr, cast(char*)"Play".ptr, MB_ICONEXCLAMATION);
+				MessageBox2("No song loaded", "Play", MB_ICONEXCLAMATION);
 			else if (samp[0].data == NULL)
-				MessageBox2(cast(char*)"No instruments loaded".ptr, cast(char*)"Play".ptr, MB_ICONEXCLAMATION);
+				MessageBox2("No instruments loaded", "Play", MB_ICONEXCLAMATION);
 			else {
 				if (sound_init()) song_playing = TRUE;
 			}

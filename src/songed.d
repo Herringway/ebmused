@@ -2,6 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import structs;
 import main;
@@ -77,12 +78,12 @@ BOOL split_pattern(int pos) nothrow {
 		channel_state *c = &split_state.chan[ch];
 		if (c.sub_count && *c.ptr != '\0') {
 			sprintf(&buf[0], "Track %d is inside a subroutine", ch);
-			MessageBox2(&buf[0], cast(char*)"Cannot split".ptr, 48/*MB_ICONEXCLAMATION*/);
+			MessageBox2(buf.fromStringz, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
 		if (c.next != 0) {
 			sprintf(&buf[0], "Track %d is inside a note", ch);
-			MessageBox2(&buf[0], cast(char*)"Cannot split".ptr, 48/*MB_ICONEXCLAMATION*/);
+			MessageBox2(buf.fromStringz, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
 	}
@@ -129,7 +130,7 @@ BOOL join_patterns() nothrow {
 	int next_pat = cur_song.order[state.ordnum+1];
 	int i;
 	if (this_pat == next_pat) {
-		MessageBox2(cast(char*)"Next pattern is same as current".ptr, cast(char*)"Cannot join".ptr, 48);
+		MessageBox2("Next pattern is same as current", "Cannot join", 48);
 		return FALSE;
 	}
 	for (i = 0; i < cur_song.order_length; i++) {
@@ -143,7 +144,7 @@ nonconsec:
 			sprintf(&buf[0], "Patterns %d and %d are not always consecutive",
 				this_pat, next_pat);
 error:
-			MessageBox2(&buf[0], cast(char*)"Cannot join".ptr, 48/*MB_ICONEXCLAMATION*/);
+			MessageBox2(buf.fromStringz, "Cannot join", 48/*MB_ICONEXCLAMATION*/);
 			return FALSE;
 		}
 	}

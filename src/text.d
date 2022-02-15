@@ -3,6 +3,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import structs;
 import misc;
@@ -36,7 +37,7 @@ int calc_track_size_from_text(char *p) nothrow {
 			size += 4;
 		} else {
 			sprintf(&buf[0], "Bad character: '%c'", c);
-			MessageBox2(&buf[0], NULL, 48);
+			MessageBox2(buf.fromStringz, null, 48);
 			return -1;
 		}
 	}

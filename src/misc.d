@@ -3,10 +3,9 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
+import std.string;
 import ebmusv2;
 import main;
-
-extern(C):
 
 void enable_menu_items(const(BYTE)* list, int flags) nothrow {
 	while (*list) EnableMenuItem(hmenu, *list++, flags);
@@ -55,9 +54,9 @@ int GetDlgItemHex(HWND hwndDlg, int idControl) nothrow {
 
 // MessageBox takes the focus away and doesn't restore it - annoying,
 // since the user will probably want to correct the error.
-int MessageBox2(char *error, char *title, int flags) nothrow {
+int MessageBox2(const char[] error, const char[] title, int flags) nothrow {
 	HWND focus = GetFocus();
-	int ret = MessageBoxA(hwndMain, error, title, flags);
+	int ret = MessageBoxA(hwndMain, error.toStringz, title.toStringz, flags);
 	SetFocus(focus);
 	return ret;
 }

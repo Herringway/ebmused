@@ -2,6 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
+import std.string;
 import id;
 import ebmusv2;
 import structs;
@@ -43,7 +44,7 @@ int sound_init() nothrow {
 	if (error) {
 	    char[60] buf = 0;
 		sprintf(&buf[0], "waveOut device could not be opened (%d)", error);
-		MessageBox2(&buf[0], NULL, MB_ICONERROR);
+		MessageBox2(buf.fromStringz, [], MB_ICONERROR);
 		return 0;
 	}
 

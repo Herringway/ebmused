@@ -1,5 +1,6 @@
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
+import std.string;
 import ebmusv2;
 import misc;
 
@@ -10,7 +11,7 @@ __gshared HMIDIIN hMidiIn = NULL;
 private void outputMidiError(uint err) nothrow {
 	char[256] errmsg;
 	midiInGetErrorTextA(err, &errmsg[0], 255);
-	MessageBox2(&errmsg[0], cast(char*)"MIDI Error".ptr, MB_ICONEXCLAMATION);
+	MessageBox2(errmsg.fromStringz, "MIDI Error", MB_ICONEXCLAMATION);
 }
 
 void closeMidiInDevice() nothrow {

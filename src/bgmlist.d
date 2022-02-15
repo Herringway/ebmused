@@ -3,6 +3,9 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
+import std.format : sformat;
+import std.exception : assumeWontThrow;
+import std.string : fromStringz;
 import ebmusv2;
 import structs;
 import ctrltbl;
@@ -125,7 +128,7 @@ void load_instruments() nothrow {
 		while ((size = fgetw(rom)) != 0) {
 			addr = fgetw(rom);
 			if (size + addr >= 0x10000) {
-				MessageBox2(cast(char*)"Invalid SPC block".ptr, cast(char*)"Error loading instruments".ptr, MB_ICONERROR);
+				MessageBox2("Invalid SPC block", "Error loading instruments", MB_ICONERROR);
 				return;
 			}
 			fread(&spc[addr], size, 1, rom);
@@ -252,7 +255,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 
 			fseek(rom, BGM_PACK_TABLE + rom_offset + 3 * selected_bgm, SEEK_SET);
 			if (!fwrite(&new_pack_used[0], 3, 1, rom)) {
-write_error:	MessageBox2(strerror(errno), cast(char*)"Save".ptr, MB_ICONERROR);
+write_error:	MessageBox2(strerror(errno).fromStringz, "Save", MB_ICONERROR);
 				break;
 			}
 			memcpy(&pack_used[selected_bgm], &new_pack_used[0], 3);
@@ -261,8 +264,7 @@ write_error:	MessageBox2(strerror(errno), cast(char*)"Save".ptr, MB_ICONERROR);
 				goto write_error;
 			song_address[selected_bgm] = cast(ushort)new_spc_address;
 			fflush(rom);
-			sprintf(&buf[0], "Info for BGM %02X saved!", selected_bgm + 1);
-			MessageBox2(&buf[0], cast(char*)"Song Table Updated".ptr, MB_OK);
+			MessageBox2(assumeWontThrow(sformat(buf[], "Info for BGM %02X saved!", selected_bgm + 1)), "Song Table Updated", MB_OK);
 			break;
 		}
 		case IDC_CUR_IPACK_1:

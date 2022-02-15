@@ -1105,8 +1105,8 @@ void editor_command(int id) nothrow {
 		break;
 	case ID_MAKE_SUBROUTINE: {
 		if (cursor.sub_count) {
-			MessageBox2(cast(char*)"Cursor is already in a subroutine!".ptr,
-				cast(char*)"Make Subroutine".ptr, MB_ICONEXCLAMATION);
+			MessageBox2("Cursor is already in a subroutine!",
+				"Make Subroutine", MB_ICONEXCLAMATION);
 			break;
 		}
 		BYTE* start = sel_start;

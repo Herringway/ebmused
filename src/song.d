@@ -2,6 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import structs;
 import misc;
@@ -55,7 +56,7 @@ const(char)* internal_validate_track(BYTE *data, int size, BOOL is_sub) nothrow 
 BOOL validate_track(BYTE *data, int size, BOOL is_sub) nothrow {
 	const(char)* err = internal_validate_track(data, size, is_sub);
 	if (err) {
-		MessageBox2(cast(char*)err, NULL, 48/*MB_ICONEXCLAMATION*/);
+		MessageBox2(err.fromStringz, [], 48/*MB_ICONEXCLAMATION*/);
 		return FALSE;
 	}
 	return TRUE;

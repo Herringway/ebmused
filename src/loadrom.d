@@ -3,6 +3,9 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
 import core.sys.windows.windows;
+import std.exception;
+import std.format;
+import std.string;
 import ebmusv2;
 import id;
 import structs;
@@ -70,12 +73,13 @@ BOOL close_rom() nothrow {
 	if (unsaved_packs) {
 
 		char[70] buf;
+		char[] slice;
 		if (unsaved_packs == 1)
-			sprintf(&buf[0], "A pack has unsaved changes.\nDo you want to save?");
+			slice = assumeWontThrow(sformat(buf[], "A pack has unsaved changes.\nDo you want to save?"));
 		else
-			sprintf(&buf[0], "%d packs have unsaved changes.\nDo you want to save?", unsaved_packs);
+			slice = assumeWontThrow(sformat(buf[], "%d packs have unsaved changes.\nDo you want to save?", unsaved_packs));
 
-		int action = MessageBox2(&buf[0], cast(char*)"Close".ptr, MB_ICONEXCLAMATION | MB_YESNOCANCEL);
+		int action = MessageBox2(slice, "Close", MB_ICONEXCLAMATION | MB_YESNOCANCEL);
 		if (action == IDCANCEL || (action == IDYES && !save_all_packs()))
 			return FALSE;
 	}
@@ -105,7 +109,7 @@ BOOL close_rom() nothrow {
 BOOL open_rom(char *filename, BOOL readonly) nothrow {
 	FILE *f = fopen(filename, readonly ? "rb" : "r+b");
 	if (!f) {
-		MessageBox2(strerror(errno), cast(char*)"Can't open file".ptr, MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, "Can't open file", MB_ICONEXCLAMATION);
 		return FALSE;
 	}
 
@@ -115,7 +119,7 @@ BOOL open_rom(char *filename, BOOL readonly) nothrow {
 	rom_size = filelength(f);
 	rom_offset = rom_size & 0x200;
 	if (rom_size < 0x300000) {
-		MessageBox2(cast(char*)"An EarthBound ROM must be at least 3 MB".ptr, cast(char*)"Can't open file".ptr, MB_ICONEXCLAMATION);
+		MessageBox2("An EarthBound ROM must be at least 3 MB", "Can't open file", MB_ICONEXCLAMATION);
 		fclose(f);
 		return FALSE;
 	}

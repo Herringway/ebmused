@@ -3,6 +3,7 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import misc;
 import loadrom;
@@ -214,12 +215,12 @@ immutable char*[NUM_SONGS] bgm_orig_title = [
 BOOL open_orig_rom(char *filename) nothrow {
 	FILE *f = fopen(filename, "rb");
 	if (!f) {
-		MessageBox2(strerror(errno), filename, MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, filename.fromStringz, MB_ICONEXCLAMATION);
 		return FALSE;
 	}
 	long size = filelength(f);
 	if (size != rom_size) {
-		MessageBox2(cast(char*)"File is not same size as current ROM".ptr, filename, MB_ICONEXCLAMATION);
+		MessageBox2("File is not same size as current ROM", filename.fromStringz, MB_ICONEXCLAMATION);
 		fclose(f);
 		return FALSE;
 	}
@@ -278,7 +279,7 @@ void save_metadata() nothrow {
 	if (!metadata_changed) return;
 	FILE *mf = fopen(&md_filename[0], "w");
 	if (!mf) {
-		MessageBox2(strerror(errno), &md_filename[0], MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, md_filename.fromStringz, MB_ICONEXCLAMATION);
 		return;
 	}
 
