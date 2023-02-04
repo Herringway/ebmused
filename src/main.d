@@ -48,7 +48,7 @@ __gshared HFONT hfont;
 __gshared HWND[NUM_TABS] tab_hwnd;
 
 __gshared int current_tab;
-__gshared const char*[NUM_TABS] tab_class = [
+__gshared const wchar*[NUM_TABS] tab_class = [
 	"ebmused_bgmlist",
 	"ebmused_inst",
 	"ebmused_editor",
@@ -112,7 +112,7 @@ void tab_selected(int new_) {
 
 	RECT rc;
 	GetClientRect(hwndMain, &rc);
-	tab_hwnd[new_] = CreateWindowA(tab_class[new_], NULL,
+	tab_hwnd[new_] = CreateWindowW(tab_class[new_], NULL,
 		WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
 		0, 25, rc.right, rc.bottom - 25,
 		hwndMain, NULL, hinstance, NULL);
@@ -290,7 +290,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		winmm_message(uMsg);
 		break;
 	case WM_CREATE: {
-		HWND tabs = CreateWindowA("SysTabControl32", NULL,
+		HWND tabs = CreateWindowW("SysTabControl32", NULL,
 			WS_CHILD | WS_VISIBLE | TCS_BUTTONS, 0, 0, 600, 25,
 			hWnd, NULL, hinstance, NULL);
 		TC_ITEMA item;
@@ -378,7 +378,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 				id, MF_BYCOMMAND);
 			break;
 		case ID_HELP:
-			CreateWindowA("ebmused_codelist", "Code list",
+			CreateWindowW("ebmused_codelist", "Code list",
 				WS_OVERLAPPEDWINDOW | WS_VISIBLE,
 				CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
 				NULL, NULL, hinstance, NULL);
@@ -426,7 +426,7 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	Runtime.initialize();
 	sharedLog = cast(shared)new FileLogger("trace.log");
 	hinstance = hInstance;
-	WNDCLASSA wc;
+	WNDCLASSW wc;
 	MSG msg;
 
 	wc.style         = 0;
@@ -437,42 +437,42 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wc.hIcon         = LoadIconA(hInstance, MAKEINTRESOURCEA(1));
 	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = cast(HBRUSH)(COLOR_3DFACE + 1);
-	wc.lpszMenuName  = MAKEINTRESOURCEA(IDM_MENU);
+	wc.lpszMenuName  = MAKEINTRESOURCEW(IDM_MENU);
 	wc.lpszClassName = "ebmused_main";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 
 	wc.lpszMenuName  = NULL;
 	for (int i = 0; i < NUM_TABS; i++) {
 		wc.lpfnWndProc   = tab_wndproc[i];
 		wc.lpszClassName = tab_class[i];
-		RegisterClassA(&wc);
+		RegisterClassW(&wc);
 	}
 
 	wc.lpfnWndProc   = &InstTestWndProc;
 	wc.lpszClassName = "ebmused_insttest";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 	wc.lpfnWndProc   = &StateWndProc;
 	wc.lpszClassName = "ebmused_state";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 
 	wc.hbrBackground = NULL;
 	wc.lpfnWndProc   = &CodeListWndProc;
 	wc.lpszClassName = "ebmused_codelist";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 	wc.lpfnWndProc   = &OrderWndProc;
 	wc.lpszClassName = "ebmused_order";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 
 	wc.style         = CS_HREDRAW;
 	wc.lpfnWndProc   = &TrackerWndProc;
 	wc.lpszClassName = "ebmused_tracker";
-	RegisterClassA(&wc);
+	RegisterClassW(&wc);
 
 	InitCommonControls();
 
 //	SetUnhandledExceptionFilter(exfilter);
 
-	hwndMain = CreateWindowA("ebmused_main", "EarthBound Music Editor",
+	hwndMain = CreateWindowW("ebmused_main", "EarthBound Music Editor",
 		WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
 		CW_USEDEFAULT, CW_USEDEFAULT, 720, 540,
 		NULL, NULL, hInstance, NULL);
