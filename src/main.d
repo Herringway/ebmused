@@ -413,90 +413,85 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	return 0;
 }
 
-/*LONG CALLBACK exfilter(EXCEPTION_POINTERS *exi) {
-	printf("Unhandled exception\n");
-	return EXCEPTION_EXECUTE_HANDLER;
-}*/
+version(win32) {
+	extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+		import core.runtime;
+		import std.experimental.logger;
+		Runtime.initialize();
+		sharedLog = cast(shared)new FileLogger("trace.log");
+		hinstance = hInstance;
+		WNDCLASSW wc;
+		MSG msg;
 
-extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-	LPSTR lpCmdLine, int nCmdShow)
-{
-	import core.runtime;
-	import std.experimental.logger;
-	Runtime.initialize();
-	sharedLog = cast(shared)new FileLogger("trace.log");
-	hinstance = hInstance;
-	WNDCLASSW wc;
-	MSG msg;
-
-	wc.style         = 0;
-	wc.lpfnWndProc   = &MainWndProc;
-	wc.cbClsExtra    = 0;
-	wc.cbWndExtra    = 0;
-	wc.hInstance     = hInstance;
-	wc.hIcon         = LoadIconA(hInstance, MAKEINTRESOURCEA(1));
-	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = cast(HBRUSH)(COLOR_3DFACE + 1);
-	wc.lpszMenuName  = MAKEINTRESOURCEW(IDM_MENU);
-	wc.lpszClassName = "ebmused_main";
-	RegisterClassW(&wc);
-
-	wc.lpszMenuName  = NULL;
-	for (int i = 0; i < NUM_TABS; i++) {
-		wc.lpfnWndProc   = tab_wndproc[i];
-		wc.lpszClassName = tab_class[i];
+		wc.style         = 0;
+		wc.lpfnWndProc   = &MainWndProc;
+		wc.cbClsExtra    = 0;
+		wc.cbWndExtra    = 0;
+		wc.hInstance     = hInstance;
+		wc.hIcon         = LoadIconA(hInstance, MAKEINTRESOURCEA(1));
+		wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+		wc.hbrBackground = cast(HBRUSH)(COLOR_3DFACE + 1);
+		wc.lpszMenuName  = MAKEINTRESOURCEW(IDM_MENU);
+		wc.lpszClassName = "ebmused_main";
 		RegisterClassW(&wc);
-	}
 
-	wc.lpfnWndProc   = &InstTestWndProc;
-	wc.lpszClassName = "ebmused_insttest";
-	RegisterClassW(&wc);
-	wc.lpfnWndProc   = &StateWndProc;
-	wc.lpszClassName = "ebmused_state";
-	RegisterClassW(&wc);
-
-	wc.hbrBackground = NULL;
-	wc.lpfnWndProc   = &CodeListWndProc;
-	wc.lpszClassName = "ebmused_codelist";
-	RegisterClassW(&wc);
-	wc.lpfnWndProc   = &OrderWndProc;
-	wc.lpszClassName = "ebmused_order";
-	RegisterClassW(&wc);
-
-	wc.style         = CS_HREDRAW;
-	wc.lpfnWndProc   = &TrackerWndProc;
-	wc.lpszClassName = "ebmused_tracker";
-	RegisterClassW(&wc);
-
-	InitCommonControls();
-
-//	SetUnhandledExceptionFilter(exfilter);
-
-	hwndMain = CreateWindowW("ebmused_main", "EarthBound Music Editor",
-		WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
-		CW_USEDEFAULT, CW_USEDEFAULT, 720, 540,
-		NULL, NULL, hInstance, NULL);
-	ShowWindow(hwndMain, nCmdShow);
-
-	hmenu = GetMenu(hwndMain);
-	CheckMenuRadioItem(hmenu, ID_OCTAVE_1, ID_OCTAVE_1+4, ID_OCTAVE_1+2, MF_BYCOMMAND);
-
-	hcontextmenu = LoadMenuA(hInstance, MAKEINTRESOURCEA(IDM_CONTEXTMENU));
-
-	hfont = GetStockObject(DEFAULT_GUI_FONT);
-
-	HACCEL hAccel = LoadAcceleratorsA(hInstance, MAKEINTRESOURCEA(IDA_ACCEL));
-
-	//if (_ARGC > 1)
-	//	open_rom(_ARGV[1], FALSE);
-	tab_selected(0);
-
-	while (GetMessage(&msg, NULL, 0, 0) > 0) {
-		if (!TranslateAccelerator(hwndMain, hAccel, &msg)) {
-			TranslateMessage(&msg);
+		wc.lpszMenuName  = NULL;
+		for (int i = 0; i < NUM_TABS; i++) {
+			wc.lpfnWndProc   = tab_wndproc[i];
+			wc.lpszClassName = tab_class[i];
+			RegisterClassW(&wc);
 		}
-		DispatchMessage(&msg);
+
+		wc.lpfnWndProc   = &InstTestWndProc;
+		wc.lpszClassName = "ebmused_insttest";
+		RegisterClassW(&wc);
+		wc.lpfnWndProc   = &StateWndProc;
+		wc.lpszClassName = "ebmused_state";
+		RegisterClassW(&wc);
+
+		wc.hbrBackground = NULL;
+		wc.lpfnWndProc   = &CodeListWndProc;
+		wc.lpszClassName = "ebmused_codelist";
+		RegisterClassW(&wc);
+		wc.lpfnWndProc   = &OrderWndProc;
+		wc.lpszClassName = "ebmused_order";
+		RegisterClassW(&wc);
+
+		wc.style         = CS_HREDRAW;
+		wc.lpfnWndProc   = &TrackerWndProc;
+		wc.lpszClassName = "ebmused_tracker";
+		RegisterClassW(&wc);
+
+		InitCommonControls();
+
+	//	SetUnhandledExceptionFilter(exfilter);
+
+		hwndMain = CreateWindowW("ebmused_main", "EarthBound Music Editor",
+			WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+			CW_USEDEFAULT, CW_USEDEFAULT, 720, 540,
+			NULL, NULL, hInstance, NULL);
+		ShowWindow(hwndMain, nCmdShow);
+
+		hmenu = GetMenu(hwndMain);
+		CheckMenuRadioItem(hmenu, ID_OCTAVE_1, ID_OCTAVE_1+4, ID_OCTAVE_1+2, MF_BYCOMMAND);
+
+		hcontextmenu = LoadMenuA(hInstance, MAKEINTRESOURCEA(IDM_CONTEXTMENU));
+
+		hfont = GetStockObject(DEFAULT_GUI_FONT);
+
+		HACCEL hAccel = LoadAcceleratorsA(hInstance, MAKEINTRESOURCEA(IDA_ACCEL));
+
+		//if (_ARGC > 1)
+		//	open_rom(_ARGV[1], FALSE);
+		tab_selected(0);
+
+		while (GetMessage(&msg, NULL, 0, 0) > 0) {
+			if (!TranslateAccelerator(hwndMain, hAccel, &msg)) {
+				TranslateMessage(&msg);
+			}
+			DispatchMessage(&msg);
+		}
+		DestroyMenu(hcontextmenu);
+		return msg.wParam;
 	}
-	DestroyMenu(hcontextmenu);
-	return msg.wParam;
 }
