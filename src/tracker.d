@@ -262,7 +262,7 @@ private void restore_cursor(track *t, int offset) nothrow {
 	cursor_moved(FALSE);
 }
 
-extern(Windows) BOOL TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+extern(Windows) ptrdiff_t TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		// need to return TRUE to set default focus
@@ -415,7 +415,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		} else if (id == IDC_PAT_LIST) {
 			if (HIWORD(wParam) != CBN_SELCHANGE) break;
 			cur_song.order[state.ordnum] =
-				SendMessage(cast(HWND)lParam, CB_GETCURSEL, 0, 0);
+				cast(int)SendMessage(cast(HWND)lParam, CB_GETCURSEL, 0, 0);
 			scroll_to(0);
 			pattern_changed();
 		} else if (id == IDC_PAT_ADD || id == IDC_PAT_INS) {
@@ -543,7 +543,7 @@ private void tracker_paint(HWND hWnd) nothrow {
 			y += font_height;
 			TextOutA(hdc, x, y, "Additional information:", 23);
 			y += font_height;
-			TextOutA(hdc, x, y, decomp_error, strlen(decomp_error));
+			TextOutA(hdc, x, y, decomp_error, cast(int)strlen(decomp_error));
 		}
 		goto paint_end;
 	}
@@ -906,7 +906,7 @@ BOOL move_cursor(BOOL function(BOOL select) nothrow func, BOOL select) nothrow {
 // Inserts code at the cursor
 private void track_insert(int size, const BYTE *data) nothrow {
 	track *t = cursor_track;
-	int off = cursor.ptr - t.track;
+	int off = cast(int)(cursor.ptr - t.track);
 	t.size += size;
 	t.track = cast(ubyte*)realloc(t.track, t.size + 1);
 	BYTE *ins = t.track + off;
@@ -921,12 +921,12 @@ private BOOL copy_sel() nothrow {
 	BYTE *start = sel_start;
 	BYTE *end = sel_end;
 	if (start == end) return FALSE;
-	if (!validate_track(start, end - start, cursor.sub_count))
+	if (!validate_track(start, cast(int)(end - start), cursor.sub_count))
 		return FALSE;
 	if (!OpenClipboard(hwndMain)) return FALSE;
 	EmptyClipboard();
 	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, text_length(start, end));
-	track_to_text(cast(char*)GlobalLock(hglb), start, end - start);
+	track_to_text(cast(char*)GlobalLock(hglb), start, cast(int)(end - start));
 	GlobalUnlock(hglb);
 	SetClipboardData(CF_TEXT, hglb);
 	CloseClipboard();
@@ -955,7 +955,7 @@ private void delete_sel(BOOL cut) nothrow {
 	BYTE* end = sel_end;
 	if (end == t.track + t.size) {
 		// Don't let the track end with a note-length code
-		if (!validate_track(t.track, start - t.track, cursor.sub_count))
+		if (!validate_track(t.track, cast(int)(start - t.track), cursor.sub_count))
 			return;
 	}
 	if (cut) {
@@ -969,7 +969,7 @@ private void delete_sel(BOOL cut) nothrow {
 		start = NULL;
 	}
 	pattern_changed();
-	restore_cursor(t, start - t.track);
+	restore_cursor(t, cast(int)(start - t.track));
 }
 
 private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, int durationOrOffset) nothrow
@@ -981,7 +981,7 @@ private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, i
 	{
 		BYTE* original_pos = cursor.ptr;
 		track* t = cursor_track;
-		int off = cursor.ptr - t.track;
+		int off = cast(int)(cursor.ptr - t.track);
 		if (*cursor.ptr >= 0x01 && *cursor.ptr <= 0x7F)
 		{
 			BYTE duration = callback(*cursor.ptr, durationOrOffset);
@@ -1133,7 +1133,7 @@ void editor_command(int id) nothrow {
 			end += 4;
 		}
 		memmove(start + 4, end, t.track + (old_size + 1) - end);
-		t.size = old_size + 4 - (end - start);
+		t.size = cast(int)(old_size + 4 - (end - start));
 		start[0] = 0xEF;
 		start[1] = sub & 255;
 		start[2] = cast(ubyte)(sub >> 8);
@@ -1148,7 +1148,7 @@ void editor_command(int id) nothrow {
 		BYTE *src = cursor_track.track;
 		int subsize = cursor_track.size;
 		track *t = &cur_song.pattern[cur_song.order[state.ordnum]][cursor_chan];
-		int off = cursor.sub_ret - t.track;
+		int off = cast(int)(cursor.sub_ret - t.track);
 		int count = cursor.sub_ret[-1];
 		int old_size = t.size;
 		t.size = (old_size - 4 + (subsize * count));
@@ -1164,7 +1164,7 @@ void editor_command(int id) nothrow {
 		break;
 	}
 	case ID_TRANSPOSE: {
-		int delta = DialogBox(hinstance, MAKEINTRESOURCE(IDD_TRANSPOSE),
+		ptrdiff_t delta = DialogBox(hinstance, MAKEINTRESOURCE(IDD_TRANSPOSE),
 			hwndMain, &TransposeDlgProc);
 		if (delta == 0) break;
 		for (BYTE *p = sel_start; p < sel_end; p = next_code(p)) {
@@ -1327,7 +1327,7 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 		}
 		else
 		{
-			int note = note_from_key(wParam, shift);
+			int note = note_from_key(cast(int)wParam, shift);
 			addOrInsertNote(note);
 		}
 		break;
@@ -1394,7 +1394,7 @@ private void show_state(int pos, const char *buf) nothrow {
 	rc.top = (pos & 15) * font_height + 1;
 	rc.right = rc.left + 60;
 	rc.bottom = rc.top + font_height;
-	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], strlen(buf), NULL);
+	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], cast(uint)strlen(buf), NULL);
 }
 
 private void show_simple_state(int pos, BYTE value) nothrow {
@@ -1462,7 +1462,7 @@ extern(Windows) LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		hwndState = hWnd;
 		create_controls(hWnd, &state_template, lParam);
 		closeMidiInDevice();
-		openMidiInDevice(midiDevice, &MidiInProc2);
+		openMidiInDevice(cast(int)midiDevice, &MidiInProc2);
 		break;
 	case WM_ERASEBKGND: {
 		DefWindowProc(hWnd, uMsg, wParam, lParam);

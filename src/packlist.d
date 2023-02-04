@@ -43,7 +43,7 @@ enum IDC_SONG_DEL = 46;
 
 private __gshared HWND rom_list, inmem_list;
 private __gshared int sort_by;
-private __gshared int inmem_sel;
+private __gshared ptrdiff_t inmem_sel;
 
 static const control_desc[22] pack_list_controls = [
 	//The format here is X position, Y position, height, and width. The negative numbers mean it starts from the bottom
@@ -85,7 +85,7 @@ static window_template pack_list_template = window_template(22, 14, 0, 0, &pack_
 static void show_blocks(HWND packlist, pack *p, LV_ITEMA *lvi) {
 	char[MAX_TITLE_LEN+5] buf;
 	block *b = p.blocks;
-	int packno = lvi.lParam >> 16;
+	ptrdiff_t packno = lvi.lParam >> 16;
 	for (int i = 1; i <= p.block_count; i++, b++) {
 		lvi.mask = LVIF_PARAM;
 		lvi.iSubItem = 0;

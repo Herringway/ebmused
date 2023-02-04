@@ -98,7 +98,7 @@ BOOL split_pattern(int pos) nothrow {
 			ap[ch].track = NULL;
 			continue;
 		}
-		int before_size = splitptr - bp[ch].track;
+		int before_size = cast(int)(splitptr - bp[ch].track);
 		int after_size = bp[ch].size - before_size;
 
 		int after_subcount = c.sub_count ? c.sub_count - 1 : 0;
@@ -185,7 +185,7 @@ static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) nothrow {
 }
 
 int create_sub(BYTE *start, BYTE *end, int *count) nothrow {
-	int size = end - start;
+	int size = cast(int)(end - start);
 	int sub;
 	int subsize;
 	int cnt;
@@ -207,7 +207,7 @@ int create_sub(BYTE *start, BYTE *end, int *count) nothrow {
 	BYTE *p = start;
 	while (p < end) {
 		p = next_code(p);
-		subsize = p - start;
+		subsize = cast(int)(p - start);
 		cnt = check_repeat(start, subsize, start, size);
 		// eventually p will reach end, and this must succeed
 		if (cnt) {

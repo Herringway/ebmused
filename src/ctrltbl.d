@@ -8,7 +8,11 @@ struct control_desc {
 	immutable(char)* class_; short x, y, xsize, ysize; immutable(char)* title; DWORD id; DWORD style;
 }
 struct window_template {
-	int num, lower, winsize, divy; const(control_desc) *controls;
+	int num;
+	int lower;
+	ptrdiff_t winsize;
+	int divy;
+	const(control_desc) *controls;
 }
 
 void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {

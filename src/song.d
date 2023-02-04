@@ -119,7 +119,7 @@ int compile_song(Song *s) nothrow {
 	}
 	free(sub_table);
 
-	return (tout - &spc[0]) - s.address;
+	return cast(int)((tout - &spc[0]) - s.address);
 }
 
 void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
@@ -136,7 +136,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 	// many patterns there are, so the pattern pointers aren't validated yet)
 	WORD *wp = cast(WORD *)&spc[start_addr];
 	while (*wp >= 0x100) wp++;
-	s.order_length = wp - cast(WORD *)&spc[start_addr];
+	s.order_length = cast(int)(wp - cast(WORD *)&spc[start_addr]);
 	if (s.order_length == 0) {
 		error = "Order length is 0";
 		goto error1;
@@ -157,7 +157,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 		s.repeat_pos = repeat_off >> 1;
 	}
 
-	first_pattern = cast(BYTE *)wp - &spc[0];
+	first_pattern = cast(int)(cast(BYTE *)wp - &spc[0]);
 
 	// locate first track, determine number of patterns
 	while ((cast(BYTE *)wp)+1 < &spc[end_addr] && *wp == 0) wp++;
@@ -243,7 +243,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 		BYTE *track_end;
 		for (track_end = &spc[start]; track_end < &spc.ptr[next] && *track_end != 0; track_end = next_code(track_end)) {}
 
-		t.size = (track_end - &spc[0]) - start;
+		t.size = cast(int)((track_end - &spc[0]) - start);
 		t.track = cast(ubyte*)memcpy(malloc(t.size + 1), &spc[start], t.size);
 		t.track[t.size] = 0;
 
@@ -267,7 +267,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 				BYTE *substart = &spc[sub_ptr];
 				BYTE *subend = substart;
 				while (*subend != 0) subend = next_code(subend);
-				st.size = subend - substart;
+				st.size = cast(int)(subend - substart);
 				st.track = cast(ubyte*)memcpy(malloc(st.size + 1), substart, st.size + 1);
 				const(char)* e = internal_validate_track(st.track, st.size, TRUE);
 				if (e) {

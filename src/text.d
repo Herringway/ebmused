@@ -124,7 +124,7 @@ void track_to_text(char *out_, BYTE *track, int size) nothrow {
 	for (int len, pos = 0; pos < size; pos += len) {
 		int byte_ = track[pos];
 
-		len = next_code(&track[pos]) - &track[pos];
+		len = cast(int)(next_code(&track[pos]) - &track[pos]);
 
 		if (byte_ == 0xEF) {
 			int sub = track[pos+1] | track[pos+2] << 8;

@@ -172,7 +172,7 @@ void winmm_message(UINT uMsg) nothrow {
 	}
 }
 
-extern(Windows) BOOL OptionsDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+extern(Windows) ptrdiff_t OptionsDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		SetDlgItemInt(hWnd, IDC_RATE, mixrate, FALSE);

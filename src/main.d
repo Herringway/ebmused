@@ -37,10 +37,10 @@ enum hwndPackList = cast(void*)3;
 
 __gshared song cur_song;
 __gshared BYTE[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
-__gshared int current_block = -1;
+__gshared ptrdiff_t current_block = -1;
 __gshared song_state pattop_state, state;
 __gshared int octave = 2;
-__gshared int midiDevice = -1;
+__gshared ptrdiff_t midiDevice = -1;
 __gshared HINSTANCE hinstance;
 __gshared HWND hwndMain;
 __gshared HMENU hmenu, hcontextmenu;
@@ -418,13 +418,13 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	return EXCEPTION_EXECUTE_HANDLER;
 }*/
 
-extern(Windows) int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
 	import core.runtime;
 	import std.experimental.logger;
 	Runtime.initialize();
-	sharedLog = new FileLogger("trace.log");
+	sharedLog = cast(shared)new FileLogger("trace.log");
 	hinstance = hInstance;
 	WNDCLASSA wc;
 	MSG msg;

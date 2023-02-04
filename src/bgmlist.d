@@ -45,7 +45,7 @@ enum IDC_CUR_SPCADDR = 38;
 enum IDC_LOAD_BGM = 40;
 enum IDC_CHANGE_BGM = 41;
 
-__gshared int selected_bgm;
+__gshared ptrdiff_t selected_bgm;
 private char[32] bgm_num_text = "BGM --:";
 
 immutable control_desc[27] bgm_list_controls = [
@@ -154,7 +154,7 @@ private void load_music(BYTE *packs_used, int spc_addr) nothrow {
 	load_instruments();
 }
 
-private void song_selected(int index) nothrow {
+private void song_selected(ptrdiff_t index) nothrow {
 	selected_bgm = index;
 	show_bgm_info();
 	load_music(&pack_used[index][0], song_address[index]);
@@ -164,7 +164,7 @@ private void song_search() nothrow {
 	char[MAX_TITLE_LEN+1] str = 0;
 	char *endhex;
 	GetDlgItemTextA(hwndBGMList, IDC_SEARCH_TEXT, &str[0], MAX_TITLE_LEN+1);
-	int num = strtol(&str[0], &endhex, 16) - 1;
+	ptrdiff_t num = strtol(&str[0], &endhex, 16) - 1;
 	if (*endhex != '\0' || num < 0 || num >= NUM_SONGS) {
 		num = selected_bgm;
 		strlwr(&str[0]);

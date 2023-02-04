@@ -27,7 +27,7 @@ enum inst_list_template_lower = 10;
 
 __gshared private HWND samplist, instlist, insttest;
 __gshared private int prev_chmask;
-__gshared private int selectedInstrument = 0;
+__gshared private ptrdiff_t selectedInstrument = 0;
 
 private immutable control_desc[10] inst_list_controls = [
 	{ "Static",  10, 10,100, 20, "Sample Directory:", 0, 0 },
@@ -56,14 +56,14 @@ int note_from_key(int key, BOOL shift) nothrow {
 	if (shift) {
 		static char[22] drums = "1234567890\xBD\xBBQWERTYUIOP";
 		char *p = strchr(&drums[0], key);
-		if (p) return 0x4A + (p-&drums[0]);
+		if (p) return cast(int)(0x4A + (p-&drums[0]));
 	} else {
 		static char[17] low  = "ZSXDCVGBHNJM\xBCL";
 		static char[17] high = "Q2W3ER5T6Y7UI9O0P";
 		char *p = strchr(&low[0], key);
-		if (p) return octave*12 + (p-&low[0]);
+		if (p) return cast(int)(octave*12 + (p-&low[0]));
 		p = strchr(&high[0], key);
-		if (p) return (octave+1)*12 + (p-&high[0]);
+		if (p) return cast(int)((octave+1)*12 + (p-&high[0]));
 	}
 	return -1;
 }
@@ -85,7 +85,7 @@ static void note_off(int note) nothrow {
 }
 
 static void note_on(int note, int velocity) nothrow {
-	int sel = SendMessageA(instlist, LB_GETCURSEL, 0, 0);
+	ptrdiff_t sel = SendMessageA(instlist, LB_GETCURSEL, 0, 0);
 	if (sel < 0) return;
 	int inst = valid_insts[sel];
 
@@ -138,12 +138,12 @@ __gshared private WNDPROC ListBoxWndProc;
 // Custom window procedure for the instrument ListBox
 extern(Windows) private LRESULT InstListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30))) {
-		int note = note_from_key(wParam, FALSE);
+		int note = note_from_key(cast(int)wParam, FALSE);
 		if (note >= 0 && note < 0x48)
 			note_on(note, 24);
 	}
 	if (uMsg == WM_KEYUP) {
-		int note = note_from_key(wParam, FALSE);
+		int note = note_from_key(cast(int)wParam, FALSE);
 		if (note >= 0 && note < 0x48)
 			note_off(note);
 	}
@@ -257,7 +257,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 		SendMessageA(cb, CB_SETCURSEL, midiDevice + 1, 0);
 		closeMidiInDevice();
-		openMidiInDevice(midiDevice, &MidiInProc);
+		openMidiInDevice(cast(int)midiDevice, &MidiInProc);
 
 		break;
 	}
@@ -268,7 +268,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 			if (action == CBN_SELCHANGE) {
 				midiDevice = SendMessageA(cast(HWND)lParam, CB_GETCURSEL, 0, 0) - 1;
 				closeMidiInDevice();
-				openMidiInDevice(midiDevice, &MidiInProc);
+				openMidiInDevice(cast(int)midiDevice, &MidiInProc);
 			} else if (action == CBN_CLOSEUP) {
 				SetFocus(instlist);
 			}

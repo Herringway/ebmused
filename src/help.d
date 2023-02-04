@@ -116,7 +116,7 @@ CA-DF: Set instrument and play note C-4. Usually used for drums.\r\n
 [FF]\r\n
 	Invalid"w;
 
-extern(Windows) LRESULT CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+extern(Windows) ptrdiff_t CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 		case WM_CTLCOLORSTATIC:
 			return cast(LRESULT)GetSysColorBrush(COLOR_WINDOW);
@@ -139,7 +139,7 @@ extern(Windows) LRESULT CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 	return 0;
 }
 
-extern(Windows) BOOL AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+extern(Windows) ptrdiff_t AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_COMMAND && LOWORD(wParam) == IDOK) {
 		EndDialog(hWnd, IDOK);
 		return TRUE;

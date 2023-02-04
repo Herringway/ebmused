@@ -111,7 +111,7 @@ block *get_cur_block() nothrow {
 	return NULL;
 }
 
-void select_block(int block_) nothrow {
+void select_block(ptrdiff_t block_) nothrow {
 	current_block = block_;
 
 	free_song(&cur_song);
@@ -180,7 +180,7 @@ void delete_block(int block) nothrow {
 // Moves the current block to a different location within the pack
 void move_block(int to) nothrow {
 	pack *p = &inmem_packs[packs_loaded[2]];
-	int from = current_block;
+	ptrdiff_t from = current_block;
 	block b = p.blocks[from];
 	if (to > from) {
 		memmove(&p.blocks[from], &p.blocks[from + 1], (to - from) * block.sizeof);
