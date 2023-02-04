@@ -280,7 +280,11 @@ BOOL save_all_packs() nothrow {
 		SendMessageA(tab_hwnd[current_tab], WM_PACKS_SAVED, 0, 0);
 		MessageBox2(assumeWontThrow(sformat(buf[], "%d pack(s) saved", packs)), "Save", MB_OK);
 	}
-	save_metadata();
+	try {
+		save_metadata();
+	} catch(Exception e) {
+		MessageBox2(e.msg, filename, MB_ICONEXCLAMATION);
+	}
 	return success;
 }
 
@@ -481,8 +485,6 @@ version(win32) {
 
 		HACCEL hAccel = LoadAcceleratorsA(hInstance, MAKEINTRESOURCEA(IDA_ACCEL));
 
-		//if (_ARGC > 1)
-		//	open_rom(_ARGV[1], FALSE);
 		tab_selected(0);
 
 		while (GetMessage(&msg, NULL, 0, 0) > 0) {

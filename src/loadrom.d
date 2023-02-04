@@ -84,7 +84,11 @@ BOOL close_rom() nothrow {
 		if (action == IDCANCEL || (action == IDYES && !save_all_packs()))
 			return FALSE;
 	}
-	save_metadata();
+	try {
+		save_metadata();
+	} catch (Exception e) {
+		MessageBox2(e.msg, filename, MB_ICONEXCLAMATION);
+	}
 	try {
 		rom.close();
 	} catch (Exception) {}

@@ -282,34 +282,41 @@ static assert(MAX_TITLE_LEN < MAX_PATH);
 	fclose(mf);
 }
 
-void save_metadata() nothrow {
+void save_metadata() {
+	import std.file : remove;
 	if (!metadata_changed) return;
-	FILE *mf = fopen(&md_filename[0], "w");
-	if (!mf) {
-		MessageBox2(strerror(errno).fromStringz, md_filename.fromStringz, MB_ICONEXCLAMATION);
-		return;
+	const filename = md_filename.fromStringz;
+	File mf = File(filename, "w");
+	scope(exit) {
+		auto size = mf.tell;
+		mf.close();
+		if (size == 0) {
+			remove(filename);
+		}
 	}
 
-	if (orig_rom_filename)
-		fprintf(mf, "O %s\n", orig_rom_filename);
+	if (orig_rom_filename) {
+		mf.writefln!"O %s"(orig_rom_filename.fromStringz);
+	}
 
 	// SPC ranges containing at least one free area
 	for (int i = 0; i < area_count; i++) {
 		int start = areas[i].address;
 		int has_free = 0;
-		for (; areas[i].pack >= AREA_FREE; i++)
+		for (; areas[i].pack >= AREA_FREE; i++) {
 			has_free |= areas[i].pack == AREA_FREE;
-		if (has_free)
-			fprintf(mf, "R %06X %06X\n", start, areas[i].address);
+		}
+		if (has_free) {
+			mf.writefln!"R %06X %06X"(start, areas[i].address);
+		}
 	}
 
-	for (int i = 0; i < NUM_SONGS; i++)
-		if (strcmp(bgm_title[i], bgm_orig_title[i]) != 0)
-			fprintf(mf, "T %02X %s\n", i+1, bgm_title[i]);
+	for (int i = 0; i < NUM_SONGS; i++) {
+		if (strcmp(bgm_title[i], bgm_orig_title[i]) != 0) {
+			mf.writefln!"T %02X %s"(i+1, bgm_title[i]);
+		}
+	}
 
-	int size = ftell(mf);
-	fclose(mf);
-	if (size == 0) remove(&md_filename[0]);
 	metadata_changed = FALSE;
 }
 
