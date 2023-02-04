@@ -50,3 +50,6 @@ x64/
 *.res
 *.log
 .dub
+
+dub.selections.json
+*.pdb
