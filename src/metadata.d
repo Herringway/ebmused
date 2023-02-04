@@ -313,7 +313,7 @@ void save_metadata() {
 
 	for (int i = 0; i < NUM_SONGS; i++) {
 		if (strcmp(bgm_title[i], bgm_orig_title[i]) != 0) {
-			mf.writefln!"T %02X %s"(i+1, bgm_title[i]);
+			mf.writefln!"T %02X %s"(i+1, bgm_title[i].fromStringz);
 		}
 	}
 
