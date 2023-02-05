@@ -1,3 +1,5 @@
+module win32.packlist;
+
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
@@ -6,8 +8,8 @@ import core.sys.windows.commctrl;
 import std.format;
 import ebmusv2;
 import structs;
-import ctrltbl;
-import misc;
+import win32.ctrltbl;
+import win32.misc;
 import main;
 import loadrom;
 import ranges;

@@ -7,6 +7,7 @@ import std.string;
 import ebmusv2;
 import structs;
 import misc;
+import win32.misc;
 import brr;
 import main;
 import metadata;

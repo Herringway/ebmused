@@ -6,6 +6,7 @@ import ebmusv2;
 import structs;
 import main;
 import misc;
+import win32.misc;
 import parser;
 import play;
 import song;

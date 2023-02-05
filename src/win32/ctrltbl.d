@@ -1,7 +1,10 @@
+module win32.ctrltbl;
+
 import core.sys.windows.windows;
 import ebmusv2;
-import main;
-import misc;
+import win32.fonts;
+import win32.handles;
+import win32.misc;
 
 extern(C):
 

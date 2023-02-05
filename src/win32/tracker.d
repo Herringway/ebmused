@@ -1,24 +1,28 @@
+module win32.tracker;
+
 import std.algorithm.comparison : max, min;
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
-import id;
+import win32.id;
 import ebmusv2;
 import structs;
-import ctrltbl;
+import win32.ctrltbl;
 import main;
-import sound;
+import win32.handles;
+import win32.sound;
 import text;
 import parser;
 import play;
-import misc;
+import win32.fonts;
+import win32.misc;
 import songed;
 import song;
 import packs;
 import midi;
-import inst;
+import win32.inst;
 
 extern(C):
 

@@ -1,3 +1,5 @@
+module win32.id;
+
 enum IDM_MENU = 1;
 enum IDM_CONTEXTMENU = 2;
 enum ID_OPEN = 100;

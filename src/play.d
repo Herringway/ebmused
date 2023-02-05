@@ -3,11 +3,11 @@ import core.stdc.stdio;
 import core.stdc.string;
 import ebmusv2;
 import structs;
-import sound;
+import win32.sound;
 import main;
 import parser;
 import brr;
-import tracker;
+import win32.tracker;
 
 extern(C):
 

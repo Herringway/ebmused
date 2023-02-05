@@ -9,6 +9,7 @@ import ebmusv2;
 import misc;
 import loadrom;
 import ranges;
+import win32.misc;
 
 extern(C):
 

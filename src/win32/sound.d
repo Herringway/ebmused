@@ -1,15 +1,18 @@
+module win32.sound;
+
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import std.string;
-import id;
+import win32.id;
 import ebmusv2;
 import structs;
-import misc;
+import win32.misc;
 import main;
+import win32.handles;
 import play;
-import tracker;
+import win32.tracker;
 
 extern(C):
 

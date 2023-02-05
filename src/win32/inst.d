@@ -1,3 +1,5 @@
+module win32.inst;
+
 import std.algorithm.comparison : max, min;
 import std.experimental.logger;
 import core.stdc.stdio;
@@ -5,12 +7,14 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import ebmusv2;
-import ctrltbl;
+import win32.ctrltbl;
 import main;
 import structs;
 import play;
 import misc;
-import sound;
+import win32.fonts;
+import win32.misc;
+import win32.sound;
 import midi;
 import brr;
 

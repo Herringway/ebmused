@@ -1,3 +1,5 @@
+module win32.bgmlist;
+
 import core.stdc.errno;
 import core.stdc.stdio;
 import core.stdc.stdlib;
@@ -8,8 +10,11 @@ import std.exception : assumeWontThrow;
 import std.string : fromStringz, toStringz;
 import ebmusv2;
 import structs;
-import ctrltbl;
-import sound;
+import win32.ctrltbl;
+import win32.dialogs;
+import win32.handles;
+import win32.misc;
+import win32.sound;
 import misc;
 import packs;
 import main;

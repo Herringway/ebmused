@@ -2,7 +2,7 @@ import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import std.string;
 import ebmusv2;
-import misc;
+import win32.misc;
 
 extern(C):
 
