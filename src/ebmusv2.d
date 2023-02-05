@@ -4,8 +4,6 @@ import structs;
 
 extern(C) nothrow:
 
-//version = CreateWindow;
-
 pragma(lib, "user32");
 pragma(lib, "gdi32");
 pragma(lib, "comdlg32");

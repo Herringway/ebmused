@@ -2,7 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
-import core.sys.windows.windows;
+import core.sys.windows.windows : IDCANCEL, IDYES, MB_ICONERROR, MB_ICONEXCLAMATION, MB_YESNOCANCEL, MF_ENABLED, MF_GRAYED, SetWindowTextA;
 import std.exception;
 import std.format;
 import std.string;
@@ -38,11 +38,11 @@ static char *skip_dirname(char *filename) nothrow {
 	return filename;
 }
 
-__gshared DWORD[256] crc_table;
+__gshared uint[256] crc_table;
 
 static void init_crc() nothrow {
 	for (int i = 0; i < 256; i++) {
-		DWORD crc = i;
+		uint crc = i;
 		for (int j = 8; j; j--)
 			if (crc & 1)
 				crc = (crc >> 1) ^ 0xEDB88320;
@@ -52,19 +52,19 @@ static void init_crc() nothrow {
 	}
 }
 
-static DWORD update_crc(DWORD crc, BYTE *block, int size) nothrow {
+static uint update_crc(uint crc, ubyte *block, int size) nothrow {
 	do {
 		crc = (crc >> 8) ^ crc_table[(crc ^ *block++) & 0xFF];
 	} while (--size);
 	return crc;
 }
 
-immutable BYTE[3] rom_menu_cmds = [
+immutable ubyte[3] rom_menu_cmds = [
 	ID_SAVE_ALL, ID_CLOSE, 0
 ];
 
-BOOL close_rom() nothrow {
-	if (!rom.isOpen) return TRUE;
+bool close_rom() nothrow {
+	if (!rom.isOpen) return true;
 
 	save_cur_song_to_pack();
 	int unsaved_packs = 0;
@@ -82,7 +82,7 @@ BOOL close_rom() nothrow {
 
 		int action = MessageBox2(slice, "Close", MB_ICONEXCLAMATION | MB_YESNOCANCEL);
 		if (action == IDCANCEL || (action == IDYES && !save_all_packs()))
-			return FALSE;
+			return false;
 	}
 	try {
 		save_metadata();
@@ -93,13 +93,13 @@ BOOL close_rom() nothrow {
 		rom.close();
 	} catch (Exception) {}
 	free(rom_filename);
-	rom_filename = NULL;
+	rom_filename = null;
 	enable_menu_items(&rom_menu_cmds[0], MF_GRAYED);
 	free(areas);
 	free_metadata();
 	free_samples();
 	free_song(&cur_song);
-	song_playing = FALSE;
+	song_playing = false;
 	initialize_state();
 	for (int i = 0; i < NUM_PACKS; i++) {
 		free(rom_packs[i].blocks);
@@ -108,27 +108,27 @@ BOOL close_rom() nothrow {
 	}
 	memset(&packs_loaded[0], 0xFF, 3);
 	current_block = -1;
-	return TRUE;
+	return true;
 }
 
-BOOL open_rom(char *filename, BOOL readonly) {
+bool open_rom(char *filename, bool readonly) {
 	File f;
 	try {
 		f = File(filename.fromStringz, readonly ? "rb" : "r+b");
 	} catch (Exception e) {
 		MessageBox2(e.msg, "Can't open file", MB_ICONEXCLAMATION);
-		return FALSE;
+		return false;
 	}
 
 	if (!close_rom())
-		return FALSE;
+		return false;
 
 	rom_size = cast(int)f.size;
 	rom_offset = rom_size & 0x200;
 	if (rom_size < 0x300000) {
 		MessageBox2("An EarthBound ROM must be at least 3 MB", "Can't open file", MB_ICONEXCLAMATION);
 		f.close();
-		return FALSE;
+		return false;
 	}
 	rom = f;
 	rom_filename = strdup(filename);
@@ -159,14 +159,14 @@ BOOL open_rom(char *filename, BOOL readonly) {
 	for (int i = 0; i < NUM_PACKS; i++) {
 		int size;
 		int count = 0;
-		DWORD crc;
-		block *blocks = NULL;
-		BOOL valid = TRUE;
+		uint crc;
+		block *blocks = null;
+		bool valid = true;
 		pack *rp = &rom_packs[i];
 
 		int offset = rp.	start_address - 0xC00000 + rom_offset;
 		if (offset < rom_offset || offset >= rom_size) {
-			valid = FALSE;
+			valid = false;
 			goto bad_pointer;
 		}
 
@@ -174,9 +174,9 @@ BOOL open_rom(char *filename, BOOL readonly) {
 		crc = ~0;
 		while ((size = f.getw()) > 0) {
 			int spc_addr = f.getw();
-			if (spc_addr + size > 0x10000) { valid = FALSE; break; }
+			if (spc_addr + size > 0x10000) { valid = false; break; }
 			offset += 4 + size;
-			if (offset > rom_size) { valid = FALSE; break; }
+			if (offset > rom_size) { valid = false; break; }
 
 			count++;
 			blocks = cast(block*)realloc(blocks, block.sizeof * count);
@@ -191,11 +191,11 @@ BOOL open_rom(char *filename, BOOL readonly) {
 			}*/
 
 			f.rawRead(spc[spc_addr .. spc_addr + size]);
-			crc = update_crc(crc, cast(BYTE *)&size, 2);
-			crc = update_crc(crc, cast(BYTE *)&spc_addr, 2);
+			crc = update_crc(crc, cast(ubyte *)&size, 2);
+			crc = update_crc(crc, cast(ubyte *)&spc_addr, 2);
 			crc = update_crc(crc, &spc[spc_addr], size);
 		}
-		crc = ~update_crc(crc, cast(BYTE *)&size, 2);
+		crc = ~update_crc(crc, cast(ubyte *)&size, 2);
 bad_pointer:
 		change_range(rp.start_address, offset + 2 + 0xC00000 - rom_offset,
 			AREA_NON_SPC, i);
@@ -205,5 +205,5 @@ bad_pointer:
 		inmem_packs[i].status = 0;
 	}
 	load_metadata();
-	return TRUE;
+	return true;
 }

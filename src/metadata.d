@@ -2,7 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
-import core.sys.windows.windows;
+import core.sys.windows.windows : GetFullPathNameA, MAX_PATH, MB_ICONERROR, MB_ICONEXCLAMATION;
 import std.string;
 import std.stdio;
 import ebmusv2;
@@ -13,7 +13,7 @@ import ranges;
 extern(C):
 
 __gshared string[] bgm_title;
-__gshared BOOL metadata_changed;
+__gshared bool metadata_changed;
 __gshared private char[MAX_PATH+8] md_filename;
 __gshared File orig_rom;
 __gshared char *orig_rom_filename;
@@ -213,26 +213,26 @@ immutable bgm_orig_title = [
 	"Giygas - Weakening (Quiet)",
 ];
 
-BOOL open_orig_rom(char *filename) {
+bool open_orig_rom(char *filename) {
 	File f;
 	try {
 		f = File(filename.fromStringz, "rb");
 	} catch (Exception e) {
 		MessageBox2(e.msg, filename.fromStringz, MB_ICONEXCLAMATION);
-		return FALSE;
+		return false;
 	}
 	long size = f.size;
 	if (size != rom_size) {
 		MessageBox2("File is not same size as current ROM", filename.fromStringz, MB_ICONEXCLAMATION);
 		f.close();
-		return FALSE;
+		return false;
 	}
 	if (orig_rom.isOpen) orig_rom.close();
 	orig_rom = f;
 	orig_rom_offset = size & 0x200;
 	free(orig_rom_filename);
 	orig_rom_filename = strdup(filename);
-	return TRUE;
+	return true;
 }
 
 void load_metadata() nothrow {
@@ -240,7 +240,7 @@ void load_metadata() nothrow {
 	for (int i = 0; i < NUM_SONGS; i++) {
 		bgm_title[i] = bgm_orig_title[i];
 	}
-	metadata_changed = FALSE;
+	metadata_changed = false;
 
 	// We want an absolute path here, so we don't get screwed by
 	// GetOpenFileName's current-directory shenanigans when we update.
@@ -319,11 +319,11 @@ void save_metadata() {
 		}
 	}
 
-	metadata_changed = FALSE;
+	metadata_changed = false;
 }
 
 void free_metadata() nothrow {
 	if (orig_rom.isOpen) { try { orig_rom.close(); } catch (Exception) {} }
 	free(orig_rom_filename);
-	orig_rom_filename = NULL;
+	orig_rom_filename = null;
 }

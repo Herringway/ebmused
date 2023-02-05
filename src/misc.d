@@ -10,7 +10,7 @@ import std.stdio;
 import ebmusv2;
 import main;
 
-void enable_menu_items(const(BYTE)* list, int flags) nothrow {
+void enable_menu_items(const(ubyte)* list, int flags) nothrow {
 	while (*list) EnableMenuItem(hmenu, *list++, flags);
 }
 

@@ -2,7 +2,6 @@ import core.stdc.ctype;
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
-import core.sys.windows.windows;
 import std.string;
 import ebmusv2;
 import structs;
@@ -45,17 +44,17 @@ int calc_track_size_from_text(char *p) nothrow {
 }
 
 // returns 1 if successful
-BOOL text_to_track(char *str, track *t, BOOL is_sub) nothrow {
-	BYTE *data;
+bool text_to_track(char *str, track *t, bool is_sub) nothrow {
+	ubyte *data;
 	int size = calc_track_size_from_text(str);
 	if (size < 0)
-		return FALSE;
+		return false;
 
 	int pos;
 	if (size == 0 && !is_sub) {
-		data = NULL;
+		data = null;
 	} else {
-		data = cast(BYTE*)malloc(size + 1);
+		data = cast(ubyte*)malloc(size + 1);
 		char *p = str;
 		pos = 0;
 		while (*p) {
@@ -64,14 +63,14 @@ BOOL text_to_track(char *str, track *t, BOOL is_sub) nothrow {
 			if (h >= 0) {
 				int h2 = unhex(*p);
 				if (h2 >= 0) { h = h << 4 | h2; p++; }
-				data[pos++] = cast(BYTE)h;
+				data[pos++] = cast(ubyte)h;
 			} else if (c == '*') {
 				int sub = strtol(p, &p, 10);
 				int count = *p == ',' ? strtol(p + 1, &p, 10) : 1;
 				data[pos++] = 0xEF;
 				data[pos++] = sub & 0xFF;
-				data[pos++] = cast(BYTE)(sub >> 8);
-				data[pos++] = cast(BYTE)(count);
+				data[pos++] = cast(ubyte)(sub >> 8);
+				data[pos++] = cast(ubyte)(count);
 			}
 		}
 		data[pos] = '\0';
@@ -79,7 +78,7 @@ BOOL text_to_track(char *str, track *t, BOOL is_sub) nothrow {
 
 	if (!validate_track(data, size, is_sub)) {
 		free(data);
-		return FALSE;
+		return false;
 	}
 
 	if (size != t.size || memcmp(data, t.track, size)) {
@@ -89,14 +88,14 @@ BOOL text_to_track(char *str, track *t, BOOL is_sub) nothrow {
 	} else {
 		free(data);
 	}
-	return TRUE;
+	return false;
 }
 
 //// includes ending '\0'
-int text_length(BYTE *start, BYTE *end) nothrow {
+int text_length(ubyte *start, ubyte *end) nothrow {
 	import std.experimental.logger;
 	int textlength = 0;
-	for (BYTE *p = start; p < end; ) {
+	for (ubyte *p = start; p < end; ) {
 		int byte_ = *p;
 		int len;
 		if (byte_ < 0x80) {
@@ -120,7 +119,7 @@ int text_length(BYTE *start, BYTE *end) nothrow {
 }
 
 //// convert a track to text. size must not be 0
-void track_to_text(char *out_, BYTE *track, int size) nothrow {
+void track_to_text(char *out_, ubyte *track, int size) nothrow {
 	for (int len, pos = 0; pos < size; pos += len) {
 		int byte_ = track[pos];
 

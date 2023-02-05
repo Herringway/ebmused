@@ -48,21 +48,21 @@ enum IDC_ENABLE_CHANNEL_0 = 20;
 immutable control_desc[16] editor_controls = [
 // Upper
 	{ "Static",          10, 13, 42, 20, "Patterns:", 0, 0 }, //"Order" label
-	{ "ebmused_order",   56, 10,-420,20, NULL, IDC_ORDER, WS_BORDER }, //Pattern order list
+	{ "ebmused_order",   56, 10,-420,20, null, IDC_ORDER, WS_BORDER }, //Pattern order list
 	{ "Static",        -360, 13, 55, 20, "Loop Song:", IDC_REP_CAPTION, 0 },
-	{ "Edit",          -303, 10, 30, 20, NULL, IDC_REPEAT, WS_BORDER | ES_NUMBER }, //Loop textbox
+	{ "Edit",          -303, 10, 30, 20, null, IDC_REPEAT, WS_BORDER | ES_NUMBER }, //Loop textbox
 	{ "Static",        -266, 13, 40, 20, "Position:", IDC_REP_POS_CAPTION, 0 },
-	{ "Edit",          -223, 10, 30, 20, NULL, IDC_REPEAT_POS, WS_BORDER | ES_NUMBER }, //Loop position textbox
+	{ "Edit",          -223, 10, 30, 20, null, IDC_REPEAT_POS, WS_BORDER | ES_NUMBER }, //Loop position textbox
 	{ "Static",        -187, 13, 45, 20, "Pattern:", IDC_PAT_LIST_CAPTION, 0 },
-	{ "ComboBox",      -147,  9, 40,300, NULL, IDC_PAT_LIST, CBS_DROPDOWNLIST | WS_VSCROLL },
+	{ "ComboBox",      -147,  9, 40,300, null, IDC_PAT_LIST, CBS_DROPDOWNLIST | WS_VSCROLL },
 	{ "Button",        -100,  9, 30, 20, "Add", IDC_PAT_ADD, 0 },
 	{ "Button",         -70,  9, 30, 20, "Ins", IDC_PAT_INS, 0 },
 	{ "Button",         -40,  9, 30, 20, "Del", IDC_PAT_DEL, 0 },
-	{ "ebmused_tracker", 10, 60,-20,-70, NULL, IDC_TRACKER, WS_BORDER | WS_VSCROLL },
+	{ "ebmused_tracker", 10, 60,-20,-70, null, IDC_TRACKER, WS_BORDER | WS_VSCROLL },
 // Lower
-	{ "ebmused_state",   10,  0,430,-10, NULL, IDC_STATE, 0 },
-	{ "Static",         450,  0,100, 15, NULL, IDC_EDITBOX_CAPTION, 0 },
-	{ "Edit",           450,15,-460,-25, NULL, IDC_EDITBOX, WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL },
+	{ "ebmused_state",   10,  0,430,-10, null, IDC_STATE, 0 },
+	{ "Static",         450,  0,100, 15, null, IDC_EDITBOX_CAPTION, 0 },
+	{ "Edit",           450,15,-460,-25, null, IDC_EDITBOX, WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL },
 ];
 private window_template editor_template = {
 	15, 3, 0, 0, &editor_controls[0]
@@ -75,19 +75,19 @@ immutable control_desc[2] state_controls = [
 __gshared private window_template state_template = { 2, 2, 0, 0, &state_controls[0] };
 
 __gshared private int pos_width, font_height;
-private immutable BYTE[12] zoom_levels = [ 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96 ];
+private immutable ubyte[12] zoom_levels = [ 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96 ];
 __gshared private int zoom = 6, zoom_idx = 4;
 __gshared private int tracker_width = 0;
 __gshared private int tracker_height;
-__gshared private BOOL editbox_had_focus;
+__gshared private bool editbox_had_focus;
 
 __gshared private int cursor_chan;
 // the following 4 variables are all set by cursor_moved()
 // current track or subroutine cursor is in
 __gshared private track *cursor_track;
-__gshared private BYTE *sel_from;
-__gshared private BYTE *sel_start;
-__gshared private BYTE *sel_end;
+__gshared private ubyte *sel_from;
+__gshared private ubyte *sel_start;
+__gshared private ubyte *sel_end;
 // these are what must be updated before calling cursor_moved()
 __gshared int cursor_pos;
 __gshared private Parser cursor;
@@ -96,9 +96,9 @@ __gshared private int pat_length;
 __gshared private PAINTSTRUCT ps;
 
 void tracker_scrolled() nothrow {
-	SetScrollPos(hwndTracker, SB_VERT, state.patpos, TRUE);
-	InvalidateRect(hwndTracker, NULL, FALSE);
-	InvalidateRect(hwndState, NULL, FALSE);
+	SetScrollPos(hwndTracker, SB_VERT, state.patpos, true);
+	InvalidateRect(hwndTracker, null, false);
+	InvalidateRect(hwndState, null, false);
 }
 
 private void scroll_to(int new_pos) nothrow {
@@ -132,14 +132,14 @@ private void get_font_size(HWND hWnd) nothrow {
 }
 
 private void get_sel_range() nothrow {
-	BYTE *s = sel_from;
-	BYTE *e = cursor.ptr;
+	ubyte *s = sel_from;
+	ubyte *e = cursor.ptr;
 
-	if (e == NULL) {
-		sel_start = NULL;
-		sel_end = NULL;
+	if (e == null) {
+		sel_start = null;
+		sel_end = null;
 	} else {
-		if (s > e) { BYTE *tmp = s; s = e; e = tmp; }
+		if (s > e) { ubyte *tmp = s; s = e; e = tmp; }
 		if (*e != 0) e = next_code(e);
 		sel_start = s;
 		sel_end = e;
@@ -147,7 +147,7 @@ private void get_sel_range() nothrow {
 }
 
 private void show_track_text() nothrow {
-	char *txt = NULL;
+	char *txt = null;
 	track *t = cursor_track;
 	if (t.size) {
 		txt = cast(char*)malloc(text_length(t.track, t.track + t.size));
@@ -157,7 +157,7 @@ private void show_track_text() nothrow {
 	free(txt);
 }
 
-private void cursor_moved(BOOL select) nothrow {
+private void cursor_moved(bool select) nothrow {
 	char[23] caption;
 	track *t;
 
@@ -177,7 +177,7 @@ private void cursor_moved(BOOL select) nothrow {
 		int ch = cursor_chan;
 		t = &cur_song.pattern[cur_song.order[state.ordnum]][ch];
 		sprintf(&caption[0], "Track %d", ch);
-		if (cursor.ptr == NULL)
+		if (cursor.ptr == null)
 			strcat(&caption[0], " (not present)");
 	}
 	printf("t = %p\n", t);
@@ -189,13 +189,13 @@ private void cursor_moved(BOOL select) nothrow {
 
 	if (!select) sel_from = cursor.ptr;
 	get_sel_range();
-	if (cursor.ptr != NULL) {
+	if (cursor.ptr != null) {
 		int esel_start = text_length(t.track, sel_start);
 		int esel_end = esel_start + text_length(sel_start, sel_end) - 1;
 		SendDlgItemMessage(hwndEditor, IDC_EDITBOX, EM_SETSEL, esel_start, esel_end);
 		SendDlgItemMessage(hwndEditor, IDC_EDITBOX, EM_SCROLLCARET, 0, 0);
 	}
-	InvalidateRect(hwndTracker, NULL, FALSE);
+	InvalidateRect(hwndTracker, null, false);
 }
 
 private void set_cur_chan(int ch) nothrow {
@@ -203,25 +203,25 @@ private void set_cur_chan(int ch) nothrow {
 	cursor_chan = ch;
 	titleCopy[15] = cast(char)('0' + ch);
 	SetDlgItemTextA(hwndState, IDC_CHANSTATE_CAPTION, &titleCopy[0]);
-	InvalidateRect(hwndState, NULL, FALSE);
+	InvalidateRect(hwndState, null, false);
 }
 
 void load_pattern_into_tracker() nothrow {
-	if (hwndTracker == NULL) return;
+	if (hwndTracker == null) return;
 
-	InvalidateRect(hwndOrder, NULL, FALSE);
-	InvalidateRect(hwndState, NULL, FALSE);
+	InvalidateRect(hwndOrder, null, false);
+	InvalidateRect(hwndState, null, false);
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST,
 		CB_SETCURSEL, cur_song.order[pattop_state.ordnum], 0);
 
 	parser_init(&cursor, &state.chan[cursor_chan]);
 	cursor_pos = state.patpos + state.chan[cursor_chan].next;
-	cursor_track = NULL;
-	cursor_moved(FALSE);
+	cursor_track = null;
+	cursor_moved(false);
 
 	pat_length = 0;
 	for (int ch = 0; ch < 8; ch++) {
-		if (pattop_state.chan[ch].ptr == NULL) continue;
+		if (pattop_state.chan[ch].ptr == null) continue;
 		Parser p;
 		parser_init(&p, &pattop_state.chan[ch]);
 		do {
@@ -236,9 +236,9 @@ void load_pattern_into_tracker() nothrow {
 		si.nPage = 96;
 		si.nMin = 0;
 		si.nMax = pat_length + 95;
-		SetScrollInfo(hwndTracker, SB_VERT, &si, TRUE);
+		SetScrollInfo(hwndTracker, SB_VERT, &si, true);
 	}*/
-	SetScrollRange(hwndTracker, SB_VERT, 0, pat_length, TRUE);
+	SetScrollRange(hwndTracker, SB_VERT, 0, pat_length, true);
 
 }
 
@@ -249,40 +249,40 @@ private void pattern_changed() nothrow {
 	load_pattern();
 	scroll_to(pos);
 	load_pattern_into_tracker();
-	cur_song.changed = TRUE;
+	cur_song.changed = true;
 }
 
 private void restore_cursor(track *t, int offset) nothrow {
-	BYTE *target_ptr = t.track + offset;
-	cursor_home(FALSE);
+	ubyte *target_ptr = t.track + offset;
+	cursor_home(false);
 	do {
 		if (cursor.ptr == target_ptr)
 			break;
-	} while (cursor_fwd(FALSE));
-	cursor_moved(FALSE);
+	} while (cursor_fwd(false));
+	cursor_moved(false);
 }
 
 extern(Windows) ptrdiff_t TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
-		// need to return TRUE to set default focus
+		// need to return true to set default focus
 		break;
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK)
-			EndDialog(hWnd, GetDlgItemInt(hWnd, 3, NULL, TRUE));
+			EndDialog(hWnd, GetDlgItemInt(hWnd, 3, null, true));
 		else if (LOWORD(wParam) == IDCANCEL)
 			EndDialog(hWnd, 0);
 		break;
-	default: return FALSE;
+	default: return false;
 	}
-	return TRUE;
+	return true;
 }
 
 __gshared private WNDPROC EditWndProc;
 // Custom window procedure for the track/subroutine Edit control
 extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_SETFOCUS) {
-		editbox_had_focus = TRUE;
+		editbox_had_focus = true;
 	} else if (uMsg == WM_KEYDOWN && wParam == VK_ESCAPE) {
 		SetFocus(hwndTracker);
 		return 0;
@@ -291,7 +291,7 @@ extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wP
 		char *p = cast(char*)malloc(len);
 		Parser c = cursor;
 		GetWindowTextA(hWnd, p, len);
-		if (text_to_track(p, cursor_track, c.sub_count)) {
+		if (text_to_track(p, cursor_track, !!c.sub_count)) {
 			// Find out where the editbox's caret was, and
 			// move the tracker cursor appropriately.
 			DWORD start;
@@ -318,7 +318,7 @@ private void goto_order(int pos) nothrow {
 		// we want to step through the whole pattern once by calling
 		// `do_cycle_no_sound` until it returns false.
 		for (int ch = 0; ch < 8; ch++) {
-			if (state.chan[ch].ptr != NULL) {
+			if (state.chan[ch].ptr != null) {
 				// We've found a non-null track. Simulate the current pattern.
 				while (do_cycle_no_sound(&state)) {}
 				// We're done with the current pattern. Move on to the next one.
@@ -343,12 +343,12 @@ private void pattern_deleted() nothrow {
 }
 
 private void show_repeat() nothrow {
-	SetDlgItemInt(hwndEditor, IDC_REPEAT, cur_song.repeat, FALSE);
-	SetDlgItemInt(hwndEditor, IDC_REPEAT_POS, cur_song.repeat_pos, FALSE);
+	SetDlgItemInt(hwndEditor, IDC_REPEAT, cur_song.repeat, false);
+	SetDlgItemInt(hwndEditor, IDC_REPEAT_POS, cur_song.repeat_pos, false);
 }
 
 extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
-	static const BYTE[21] editor_menu_cmds = [
+	static const ubyte[21] editor_menu_cmds = [
 		ID_CUT, ID_COPY, ID_PASTE, ID_DELETE,
 		ID_SPLIT_PATTERN, ID_JOIN_PATTERNS,
 		ID_MAKE_SUBROUTINE, ID_UNMAKE_SUBROUTINE, ID_TRANSPOSE,
@@ -369,14 +369,14 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			char[2] buf = [ cast(char)('0' + i), 0 ];
 			HWND b = CreateWindowA("Button", &buf[0],
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0,
-				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, NULL);
+				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, null);
 			SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
 		}
 		EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
 		break;
 	case WM_SONG_IMPORTED:
 	case WM_SONG_LOADED:
-		EnableWindow(hWnd, TRUE);
+		EnableWindow(hWnd, true);
 		enable_menu_items(&editor_menu_cmds[0], MF_ENABLED);
 		show_repeat();
 		HWND cb = GetDlgItem(hWnd, IDC_PAT_LIST);
@@ -390,7 +390,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		break;
 	case WM_ROM_CLOSED:
 	case WM_SONG_NOT_LOADED:
-		EnableWindow(hWnd, FALSE);
+		EnableWindow(hWnd, false);
 		enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
 		break;
 	case WM_DESTROY:
@@ -402,16 +402,16 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		if (id == IDC_REPEAT || id == IDC_REPEAT_POS) {
 			if (HIWORD(wParam) != EN_KILLFOCUS) break;
 			BOOL success;
-			UINT n = GetDlgItemInt(hWnd, id, &success, FALSE);
+			UINT n = GetDlgItemInt(hWnd, id, &success, false);
 			int *p = id == IDC_REPEAT ? &cur_song.repeat : &cur_song.repeat_pos;
 			if (success) {
 				UINT limit = (id == IDC_REPEAT ? 256 : cur_song.order_length);
 				if (n < limit && *p != n) {
 					*p = n;
-					cur_song.changed = TRUE;
+					cur_song.changed = true;
 				}
 			}
-			SetDlgItemInt(hWnd, id, *p, FALSE);
+			SetDlgItemInt(hWnd, id, *p, false);
 		} else if (id == IDC_PAT_LIST) {
 			if (HIWORD(wParam) != CBN_SELCHANGE) break;
 			cur_song.order[state.ordnum] =
@@ -429,13 +429,13 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			}
 			order_insert(ord, pat);
 			goto_order(ord);
-			cur_song.changed = TRUE;
+			cur_song.changed = true;
 		} else if (id == IDC_PAT_DEL) {
 			if (cur_song.patterns == 1) break;
 			pattern_delete(cur_song.order[state.ordnum]);
 			pattern_deleted();
 			goto_order(state.ordnum + 1);
-			cur_song.changed = TRUE;
+			cur_song.changed = true;
 			show_repeat();
 		} else if (id >= IDC_ENABLE_CHANNEL_0) {
 			chmask ^= 1 << (id - IDC_ENABLE_CHANNEL_0);
@@ -451,7 +451,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			int left = right + 1;
 			right = start + (tracker_width * (i + 1) >> 3);
 			MoveWindow(GetDlgItem(hWnd, IDC_ENABLE_CHANNEL_0+i),
-				left, 40, right - left, 20, TRUE);
+				left, 40, right - left, 20, true);
 		}
 		break;
 	default:
@@ -472,7 +472,7 @@ extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		goto_order(pos);
 		break;
 	}
-	case WM_KILLFOCUS: InvalidateRect(hWnd, NULL, FALSE); break;
+	case WM_KILLFOCUS: InvalidateRect(hWnd, null, false); break;
 	case WM_KEYDOWN:
 		if (wParam == VK_LEFT) {
 			goto_order(state.ordnum - 1);
@@ -481,14 +481,14 @@ extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		} else if (wParam == VK_INSERT) {
 			order_insert(state.ordnum + 1, cur_song.order[state.ordnum]);
 			show_repeat();
-			InvalidateRect(hWnd, NULL, FALSE);
-			cur_song.changed = TRUE;
+			InvalidateRect(hWnd, null, false);
+			cur_song.changed = true;
 		} else if (wParam == VK_DELETE) {
 			if (cur_song.order_length <= 1) break;
 			order_delete(state.ordnum);
 			show_repeat();
 			goto_order(state.ordnum);
-			cur_song.changed = TRUE;
+			cur_song.changed = true;
 		}
 		break;
 	case WM_PAINT: {
@@ -504,7 +504,7 @@ extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 				tc = SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
 				bc = SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
 			}
-			ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], len, NULL);
+			ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], len, null);
 			if (i == pattop_state.ordnum) {
 				SetTextColor(hdc, tc);
 				SetBkColor(hdc, bc);
@@ -538,8 +538,8 @@ private void tracker_paint(HWND hWnd) nothrow {
 		SetTextAlign(hdc, TA_CENTER);
 		int x = (rc.left + rc.right) >> 1;
 		int y = (rc.top + rc.bottom - font_height) >> 1;
-		ExtTextOutA(hdc, x, y, ETO_OPAQUE, &rc, &str[0], str.length, NULL);
-		if (get_cur_block() != NULL && decomp_error) {
+		ExtTextOutA(hdc, x, y, ETO_OPAQUE, &rc, &str[0], str.length, null);
+		if (get_cur_block() != null && decomp_error) {
 			y += font_height;
 			TextOutA(hdc, x, y, "Additional information:", 23);
 			y += font_height;
@@ -561,7 +561,7 @@ private void tracker_paint(HWND hWnd) nothrow {
 	while (rc.top < ps.rcPaint.bottom) {
 		int len = sprintf(&codes[0], "%d", pos);
 		rc.bottom = rc.top + font_height;
-		ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &codes[0], len, NULL);
+		ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &codes[0], len, null);
 		rc.top = rc.bottom;
 		pos += zoom;
 	}
@@ -578,7 +578,7 @@ private void tracker_paint(HWND hWnd) nothrow {
 		int chan_xleft = rc.left;
 		int next_y;
 
-		if (p.ptr == NULL) {
+		if (p.ptr == null) {
 			rc.bottom = ps.rcPaint.bottom;
 			FillRect(hdc, &rc, cast(HBRUSH)(COLOR_GRAYTEXT + 1));
 			goto draw_divider;
@@ -587,18 +587,18 @@ private void tracker_paint(HWND hWnd) nothrow {
 		rc.bottom = cs.next * font_height / zoom;
 		SetTextColor(hdc, 0);
 		SetBkColor(hdc, get_bkcolor(p.sub_count));
-		ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
+		ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rc, null, 0, null);
 		rc.top = rc.bottom;
 		while (rc.top < ps.rcPaint.bottom) {
 			// the [00] at the end of the track is not considered part
 			// of the selection, but we want to highlight it anyway
-			BOOL highlight = (p.ptr >= sel_start && p.ptr < sel_end)
+			bool highlight = (p.ptr >= sel_start && p.ptr < sel_end)
 				|| p.ptr == cursor.ptr;
-			BOOL real_highlight =
+			bool real_highlight =
 				p.sub_count == cursor.sub_count &&
 				p.sub_ret == cursor.sub_ret;
 
-			BYTE chr = *p.ptr;
+			ubyte chr = *p.ptr;
 			SIZE extent;
 			if (chr >= 0x80 && chr < 0xE0) {
 				length = 3;
@@ -620,7 +620,7 @@ note:			GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				rc.bottom = rc.top + extent.cy;
 				SetTextAlign(hdc, TA_RIGHT);
 				ExtTextOutA(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
-					&codes[0], length, NULL);
+					&codes[0], length, null);
 				if (highlight) {
 					COLORREF bc;
 					if (real_highlight) {
@@ -632,7 +632,7 @@ note:			GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 					}
 					rc.left = rc.right - extent.cx - 2;
 					ExtTextOutA(hdc, rc.right - 1, rc.top, ETO_OPAQUE, &rc,
-						&codes[0], length, NULL);
+						&codes[0], length, null);
 					SetTextColor(hdc, 0);
 					SetBkColor(hdc, bc);
 					if (p.ptr == cursor.ptr && GetFocus() == hWnd)
@@ -643,7 +643,7 @@ note:			GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				rc.left = chan_xleft;
 				rc.top = rc.bottom;
 				rc.bottom = next_y;
-				ExtTextOutA(hdc, 0, 0, ETO_OPAQUE, &rc, NULL, 0, NULL);
+				ExtTextOutA(hdc, 0, 0, ETO_OPAQUE, &rc, null, 0, null);
 				rc.top = rc.bottom;
 			} else if (chr == 0) {
 				if (p.sub_count == 0) {
@@ -673,7 +673,7 @@ note:			GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				rc.right = rc.left + extent.cx + 2;
 				rc.bottom = rc.top + extent.cy;
 				ExtTextOutA(hdc, rc.left + 1, rc.top, ETO_OPAQUE, &rc,
-					&codes[0], length, NULL);
+					&codes[0], length, null);
 				if (highlight) {
 					SetTextColor(hdc, 0);
 					SetBkColor(hdc, get_bkcolor(p.sub_count));
@@ -693,7 +693,7 @@ draw_divider:
 		// the left and right of where you'd expect it to. If this line
 		// is drawn before doing the column - as would logically make sense -
 		// it gets overwritten, and ugliness ensues.
-		MoveToEx(hdc, chan_xleft - 1, ps.rcPaint.top, NULL);
+		MoveToEx(hdc, chan_xleft - 1, ps.rcPaint.top, null);
 		LineTo(hdc, chan_xleft - 1, ps.rcPaint.bottom);
 	}
 paint_end:
@@ -701,17 +701,17 @@ paint_end:
 	EndPaint(hWnd, &ps);
 }
 
-private BOOL cursor_fwd(BOOL select) nothrow {
+private bool cursor_fwd(bool select) nothrow {
 	int byte_ = *cursor.ptr;
 	if (select) {
 		// Don't select past end of subroutine
-		if (byte_ == 0x00) return FALSE;
+		if (byte_ == 0x00) return false;
 		// Skip subroutines
 		if (byte_ == 0xEF) {
 			do
-				cursor_fwd(FALSE);
+				cursor_fwd(false);
 			while (cursor.sub_count != 0);
-			return TRUE;
+			return true;
 		}
 	}
 	if (byte_ >= 0x80 && byte_ < 0xE0)
@@ -719,42 +719,42 @@ private BOOL cursor_fwd(BOOL select) nothrow {
 	return parser_advance(&cursor);
 }
 
-private BOOL cursor_home(BOOL select) nothrow {
+private bool cursor_home(bool select) nothrow {
 	if (select && cursor.sub_count) {
 		// Go to the top of the subroutine
 		if (cursor.ptr == cursor_track.track)
-			return FALSE;
+			return false;
 		// Start from the top of the track, and search down
 		Parser target = cursor;
-		if (!cursor_home(FALSE))
-			return FALSE;
+		if (!cursor_home(false))
+			return false;
 		do {
-			if (!cursor_fwd(FALSE)) {
+			if (!cursor_fwd(false)) {
 				// This should never happen
 				cursor = target;
-				return FALSE;
+				return false;
 			}
 		} while (cursor.sub_ret != target.sub_ret
 		      || cursor.sub_count != target.sub_count);
 	} else {
 		// Go to the top of the track
 		if (cursor.ptr == pattop_state.chan[cursor_chan].ptr)
-			return FALSE;
+			return false;
 		parser_init(&cursor, &pattop_state.chan[cursor_chan]);
 		cursor_pos = 0;
 	}
-	return TRUE;
+	return true;
 }
 
 /// \brief Attempts to move the cursor back by one control code.
 /// \return Returns false if the cursor cannot be moved backwards due
 /// to already being at the top of the track, otherwise returns true.
-private BOOL cursor_back(BOOL select) nothrow {
+private bool cursor_back(bool select) nothrow {
 	int prev_pos;
 	Parser prev;
 	Parser target = cursor;
 	if (!cursor_home(select))
-		return FALSE;
+		return false;
 	do {
 		prev_pos = cursor_pos;
 		prev = cursor;
@@ -764,28 +764,28 @@ private BOOL cursor_back(BOOL select) nothrow {
 	      || cursor.sub_count != target.sub_count);
 	cursor_pos = prev_pos;
 	cursor = prev;
-	return TRUE;
+	return true;
 }
 
-private BOOL cursor_end(BOOL select) nothrow {
+private bool cursor_end(bool select) nothrow {
 	while (cursor_fwd(select)) {}
-	return TRUE;
+	return true;
 }
 
-private BOOL cursor_on_note() nothrow {
+private bool cursor_on_note() nothrow {
 	// Consider the ending [00] on a track/subroutine as a note, since it's
 	// displayed on the right (for end of track) and you can insert notes there.
 	return *cursor.ptr == 0 || (*cursor.ptr >= 0x80 && *cursor.ptr < 0xE0);
 }
 
-private BOOL cursor_up(BOOL select) nothrow {
-	BOOL on_note = cursor_on_note();
+private bool cursor_up(bool select) nothrow {
+	bool on_note = cursor_on_note();
 	Parser target = cursor;
 	if (!cursor_home(select))
-		return FALSE;
+		return false;
 	int prev_pos;
 	Parser prev;
-	prev.ptr = NULL;
+	prev.ptr = null;
 	if (on_note) {
 		// find previous note
 		do {
@@ -799,36 +799,36 @@ private BOOL cursor_up(BOOL select) nothrow {
 		      || cursor.sub_count != target.sub_count);
 	} else {
 		// find previous start-of-line code
-		BOOL at_start = TRUE;
+		bool at_start = true;
 		do {
 			if (cursor_on_note()) {
-				at_start = TRUE;
+				at_start = true;
 			} else if (at_start) {
 				prev_pos = cursor_pos;
 				prev = cursor;
-				at_start = FALSE;
+				at_start = false;
 			}
 			if (!cursor_fwd(select)) break;
 		} while (cursor.ptr != target.ptr
 		      || cursor.sub_ret != target.sub_ret
 		      || cursor.sub_count != target.sub_count);
 	}
-	if (prev.ptr == NULL)
-		return FALSE;
+	if (prev.ptr == null)
+		return false;
 	cursor_pos = prev_pos;
 	cursor = prev;
-	return TRUE;
+	return true;
 }
 
-private BOOL cursor_down(BOOL select) nothrow {
-	BOOL on_note = cursor_on_note();
+private bool cursor_down(bool select) nothrow {
+	bool on_note = cursor_on_note();
 	while (cursor_fwd(select) && !cursor_on_note()) {}
 	if (!on_note)
 		while (cursor_fwd(select) && cursor_on_note()) {}
-	return TRUE;
+	return true;
 }
 
-private void cursor_to_xy(int x, int y, BOOL select) nothrow {
+private void cursor_to_xy(int x, int y, bool select) nothrow {
 	x -= pos_width;
 	int ch = x * 8 / tracker_width;
 	if (ch < 0 || ch > 7) return;
@@ -838,7 +838,7 @@ private void cursor_to_xy(int x, int y, BOOL select) nothrow {
 	Parser p;
 	int pos = 0;
 	parser_init(&p, cs);
-	if (p.ptr != NULL) {
+	if (p.ptr != null) {
 		char[8] codes;
 		int chan_xleft  = (tracker_width * ch       >> 3) + 1;
 //		int chan_xright = (tracker_width * (ch + 1) >> 3);
@@ -851,20 +851,20 @@ private void cursor_to_xy(int x, int y, BOOL select) nothrow {
 
 		int px = chan_xleft;
 		Parser maybe_new_cursor;
-		maybe_new_cursor.ptr = NULL;
+		maybe_new_cursor.ptr = null;
 		do {
-			BYTE chr = *p.ptr;
+			ubyte chr = *p.ptr;
 			SIZE extent;
 			if (chr >= 0x80 && chr < 0xE0) {
 				int nextpos = pos + p.note_len;
 				if (nextpos >= target_pos) {
-					if (maybe_new_cursor.ptr != NULL)
+					if (maybe_new_cursor.ptr != null)
 						p = maybe_new_cursor;
 					break;
 				}
 				pos = nextpos;
 				px = chan_xleft;
-				maybe_new_cursor.ptr = NULL;
+				maybe_new_cursor.ptr = null;
 			} else if (chr == 0) {
 				/* nothing */
 			} else {
@@ -873,7 +873,7 @@ private void cursor_to_xy(int x, int y, BOOL select) nothrow {
 					length += sprintf(&codes[2], "%02X", p.ptr[1]);
 				GetTextExtentPoint32A(hdc, &codes[0], length, &extent);
 				px += extent.cx + 2;
-				if (x < px && maybe_new_cursor.ptr == NULL)
+				if (x < px && maybe_new_cursor.ptr == null)
 					maybe_new_cursor = p;
 			}
 		} while (parser_advance(&p));
@@ -894,22 +894,22 @@ private void cursor_to_xy(int x, int y, BOOL select) nothrow {
 	cursor_moved(select);
 }
 
-BOOL move_cursor(BOOL function(BOOL select) nothrow func, BOOL select) nothrow {
-	if (cursor.ptr == NULL) return FALSE;
+bool move_cursor(bool function(bool select) nothrow func, bool select) nothrow {
+	if (cursor.ptr == null) return false;
 	if (func(select)) {
 		cursor_moved(select);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 // Inserts code at the cursor
-private void track_insert(int size, const BYTE *data) nothrow {
+private void track_insert(int size, const ubyte *data) nothrow {
 	track *t = cursor_track;
 	int off = cast(int)(cursor.ptr - t.track);
 	t.size += size;
 	t.track = cast(ubyte*)realloc(t.track, t.size + 1);
-	BYTE *ins = t.track + off;
+	ubyte *ins = t.track + off;
 	memmove(ins + size, ins, t.size - (off + size));
 	t.track[t.size] = '\0';
 	memcpy(ins, data, size);
@@ -917,20 +917,20 @@ private void track_insert(int size, const BYTE *data) nothrow {
 	restore_cursor(t, off);
 }
 
-private BOOL copy_sel() nothrow {
-	BYTE *start = sel_start;
-	BYTE *end = sel_end;
-	if (start == end) return FALSE;
-	if (!validate_track(start, cast(int)(end - start), cursor.sub_count))
-		return FALSE;
-	if (!OpenClipboard(hwndMain)) return FALSE;
+private bool copy_sel() nothrow {
+	ubyte *start = sel_start;
+	ubyte *end = sel_end;
+	if (start == end) return false;
+	if (!validate_track(start, cast(int)(end - start), !!cursor.sub_count))
+		return false;
+	if (!OpenClipboard(hwndMain)) return false;
 	EmptyClipboard();
 	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, text_length(start, end));
 	track_to_text(cast(char*)GlobalLock(hglb), start, cast(int)(end - start));
 	GlobalUnlock(hglb);
 	SetClipboardData(CF_TEXT, hglb);
 	CloseClipboard();
-	return TRUE;
+	return true;
 }
 
 private void paste_sel() nothrow {
@@ -938,8 +938,8 @@ private void paste_sel() nothrow {
 	HGLOBAL hglb = GetClipboardData(CF_TEXT);
 	if (hglb) {
 		char *txt = cast(char*)GlobalLock(hglb);
-		track temp_track = { 0, NULL };
-		if (text_to_track(txt, &temp_track, cursor.sub_count)) {
+		track temp_track = { 0, null };
+		if (text_to_track(txt, &temp_track, !!cursor.sub_count)) {
 			track_insert(temp_track.size, temp_track.track);
 			free(temp_track.track);
 		}
@@ -948,14 +948,14 @@ private void paste_sel() nothrow {
 	CloseClipboard();
 }
 
-private void delete_sel(BOOL cut) nothrow {
+private void delete_sel(bool cut) nothrow {
 	track *t = cursor_track;
-	if (t.track == NULL) return;
-	BYTE* start = sel_start;
-	BYTE* end = sel_end;
+	if (t.track == null) return;
+	ubyte* start = sel_start;
+	ubyte* end = sel_end;
 	if (end == t.track + t.size) {
 		// Don't let the track end with a note-length code
-		if (!validate_track(t.track, cast(int)(start - t.track), cursor.sub_count))
+		if (!validate_track(t.track, cast(int)(start - t.track), !!cursor.sub_count))
 			return;
 	}
 	if (cut) {
@@ -965,40 +965,40 @@ private void delete_sel(BOOL cut) nothrow {
 	t.size -= (end - start);
 	if (t.size == 0 && !cursor.sub_count) {
 		free(t.track);
-		t.track = NULL;
-		start = NULL;
+		t.track = null;
+		start = null;
 	}
 	pattern_changed();
 	restore_cursor(t, cast(int)(start - t.track));
 }
 
-private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, int durationOrOffset) nothrow
+private void updateOrInsertDuration(ubyte function(ubyte, int) nothrow callback, int durationOrOffset) nothrow
 {
 	// We cannot insert a duration code before an 0x00 code,
 	// so ensure that's not the case before proceeding.
-	if (cursor_track.track != NULL
+	if (cursor_track.track != null
 		&& *cursor.ptr != 0)
 	{
-		BYTE* original_pos = cursor.ptr;
+		ubyte* original_pos = cursor.ptr;
 		track* t = cursor_track;
 		int off = cast(int)(cursor.ptr - t.track);
 		if (*cursor.ptr >= 0x01 && *cursor.ptr <= 0x7F)
 		{
-			BYTE duration = callback(*cursor.ptr, durationOrOffset);
+			ubyte duration = callback(*cursor.ptr, durationOrOffset);
 			if (duration != 0)
 			{
 				*cursor.ptr = duration;
-				cur_song.changed = TRUE;
-				InvalidateRect(hwndTracker, NULL, FALSE);
+				cur_song.changed = true;
+				InvalidateRect(hwndTracker, null, false);
 			}
 		}
 		else
 		{
 			// A duration code isn't selected so
 			// find the last duration and last note, if any.
-			BYTE* last_duration_pos = NULL;
-			BYTE* last_note_pos = NULL;
-			cursor_home(FALSE);
+			ubyte* last_duration_pos = null;
+			ubyte* last_note_pos = null;
+			cursor_home(false);
 			while (cursor.ptr != original_pos)
 			{
 				if (*cursor.ptr >= 0x01 && *cursor.ptr <= 0x7F)
@@ -1007,16 +1007,16 @@ private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, i
 					last_note_pos = cursor.ptr;
 
 				// Advance the cursor if possible and continue, otherwise break.
-				if (!cursor_fwd(FALSE))
+				if (!cursor_fwd(false))
 					break;
 			}
 
 			// If we found a duration and a note doesn't follow it (meaning
 			// the selected note follows the duration code), set the duration.
-			if (last_duration_pos != NULL
+			if (last_duration_pos != null
 				&& last_duration_pos > last_note_pos)
 			{
-				BYTE duration = callback(*last_duration_pos, durationOrOffset);
+				ubyte duration = callback(*last_duration_pos, durationOrOffset);
 				if (duration != 0)
 				{
 					*last_duration_pos = duration;
@@ -1027,30 +1027,30 @@ private void updateOrInsertDuration(BYTE function(BYTE, int) nothrow callback, i
 					restore_cursor(t, off);
 				}
 			}
-			else if (last_note_pos != NULL)
+			else if (last_note_pos != null)
 			{
 				// Else if we found a note position and it comes after the last
 				// duration code (or there is none), insert a duration.
-				BYTE duration = callback(last_duration_pos == NULL ? state.chan[cursor_chan].note_len : *last_duration_pos, durationOrOffset);
+				ubyte duration = callback(last_duration_pos == null ? state.chan[cursor_chan].note_len : *last_duration_pos, durationOrOffset);
 				if (duration != 0)
 				{
-					track_insert(1, cast(BYTE *)&duration);
-					cursor_fwd(FALSE);
+					track_insert(1, cast(ubyte *)&duration);
+					cursor_fwd(false);
 				}
 			}
 		}
 	}
 }
 
-private BYTE setDurationOffsetCallback(BYTE originalDuration, int offset) nothrow
+private ubyte setDurationOffsetCallback(ubyte originalDuration, int offset) nothrow
 {
-	BYTE newDuration = cast(BYTE)min(max(0x00, originalDuration + offset), 0xFF);
+	ubyte newDuration = cast(ubyte)min(max(0x00, originalDuration + offset), 0xFF);
 	return (newDuration >= 0x01 && newDuration <= 0x7F) ? newDuration : 0;
 }
 
-private BYTE setDurationCallback(BYTE originalDuration, int duration) nothrow
+private ubyte setDurationCallback(ubyte originalDuration, int duration) nothrow
 {
-	return cast(BYTE)((duration >= 0x01 && duration <= 0x7F) ? duration : 0);
+	return cast(ubyte)((duration >= 0x01 && duration <= 0x7F) ? duration : 0);
 }
 
 private void incrementDuration() nothrow
@@ -1063,20 +1063,20 @@ private void decrementDuration() nothrow
 	updateOrInsertDuration(&setDurationOffsetCallback, -1);
 }
 
-private void setDuration(BYTE duration) nothrow
+private void setDuration(ubyte duration) nothrow
 {
 	updateOrInsertDuration(&setDurationCallback, duration);
 }
 
 void editor_command(int id) nothrow {
 	switch (id) {
-	case ID_CUT: delete_sel(TRUE); break;
+	case ID_CUT: delete_sel(true); break;
 	case ID_COPY: copy_sel(); break;
 	case ID_PASTE: paste_sel(); break;
-	case ID_DELETE: delete_sel(FALSE); break;
+	case ID_DELETE: delete_sel(false); break;
 	case ID_CLEAR_SONG:
 		free_song(&cur_song);
-		cur_song.changed = TRUE;
+		cur_song.changed = true;
 		cur_song.order_length = 1;
 		cur_song.order = cast(int*)malloc(int.sizeof);
 		cur_song.order[0] = 0;
@@ -1085,7 +1085,7 @@ void editor_command(int id) nothrow {
 		cur_song.patterns = 1;
 		cur_song.pattern = cast(track[8]*)calloc(track.sizeof, 8);
 		cur_song.subs = 0;
-		cur_song.sub = NULL;
+		cur_song.sub = null;
 		initialize_state();
 		SendMessage(hwndEditor, WM_SONG_IMPORTED, 0, 0);
 		break;
@@ -1109,8 +1109,8 @@ void editor_command(int id) nothrow {
 				"Make Subroutine", MB_ICONEXCLAMATION);
 			break;
 		}
-		BYTE* start = sel_start;
-		BYTE* end = sel_end;
+		ubyte* start = sel_start;
+		ubyte* end = sel_end;
 		int count;
 		int sub = create_sub(start, end, &count);
 		if (sub < 0) break;
@@ -1145,7 +1145,7 @@ void editor_command(int id) nothrow {
 	// Substitute a subroutine back into the main track
 	case ID_UNMAKE_SUBROUTINE: {
 		if (!cursor.sub_count) break;
-		BYTE *src = cursor_track.track;
+		ubyte *src = cursor_track.track;
 		int subsize = cursor_track.size;
 		track *t = &cur_song.pattern[cur_song.order[state.ordnum]][cursor_chan];
 		int off = cast(int)(cursor.sub_ret - t.track);
@@ -1155,7 +1155,7 @@ void editor_command(int id) nothrow {
 		t.track = cast(ubyte*)realloc(t.track, t.size + 1);
 		memmove(t.track + (off - 4) + (subsize * count), t.track + off,
 			(old_size + 1) - off);
-		BYTE *dest = t.track + (off - 4);
+		ubyte *dest = t.track + (off - 4);
 		for (int i = 0; i < count; i++) {
 			memcpy(dest, src, subsize);
 			dest += subsize;
@@ -1167,28 +1167,28 @@ void editor_command(int id) nothrow {
 		ptrdiff_t delta = DialogBox(hinstance, MAKEINTRESOURCE(IDD_TRANSPOSE),
 			hwndMain, &TransposeDlgProc);
 		if (delta == 0) break;
-		for (BYTE *p = sel_start; p < sel_end; p = next_code(p)) {
+		for (ubyte *p = sel_start; p < sel_end; p = next_code(p)) {
 			int note = *p - 0x80;
 			if (note < 0 || note >= 0x48) continue;
 			note += delta;
 			note %= 0x48;
 			if (note < 0) note += 0x48;
-			*p = cast(BYTE)(0x80 + note);
+			*p = cast(ubyte)(0x80 + note);
 		}
-		cur_song.changed = TRUE;
+		cur_song.changed = true;
 		show_track_text();
-		InvalidateRect(hwndTracker, NULL, FALSE);
+		InvalidateRect(hwndTracker, null, false);
 		break;
 	}
 	case ID_ZOOM_IN:
 		if (zoom == 1) break;
 		zoom = zoom_levels[--zoom_idx];
-		InvalidateRect(hwndTracker, NULL, FALSE);
+		InvalidateRect(hwndTracker, null, false);
 		break;
 	case ID_ZOOM_OUT:
 		if (zoom >= 96) break;
 		zoom = zoom_levels[++zoom_idx];
-		InvalidateRect(hwndTracker, NULL, FALSE);
+		InvalidateRect(hwndTracker, null, false);
 		break;
 	case ID_INCREMENT_DURATION:
 		incrementDuration();
@@ -1223,21 +1223,21 @@ private void addOrInsertNote(int note) nothrow
 	if (note > 0x0 && note < 0x70) {
 		note |= 0x80;
 		if (cursor.ptr == cursor_track.track + cursor_track.size) {
-			track_insert(1, cast(BYTE *)&note);
+			track_insert(1, cast(ubyte *)&note);
 		} else if (*cursor.ptr >= 0x80 && *cursor.ptr < 0xE0) {
 			*cursor.ptr = cast(ubyte)note;
-			cur_song.changed = TRUE;
+			cur_song.changed = true;
 			show_track_text();
 		} else {
 			return;
 		}
-		move_cursor(&cursor_fwd, FALSE);
+		move_cursor(&cursor_fwd, false);
 	}
 }
 
 private void tracker_keydown(WPARAM wParam) nothrow {
-	int control = GetKeyState(VK_CONTROL) & 0x8000;
-	int shift = GetKeyState(VK_SHIFT) & 0x8000;
+	bool control = !!(GetKeyState(VK_CONTROL) & 0x8000);
+	bool shift = !!(GetKeyState(VK_SHIFT) & 0x8000);
 	switch (wParam) {
 	case VK_PRIOR: scroll_to(state.patpos - 96); break;
 	case VK_NEXT:  scroll_to(state.patpos + 96); break;
@@ -1249,7 +1249,7 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 		set_cur_chan((cursor_chan + (shift ? -1 : 1)) & 7);
 		parser_init(&cursor, &state.chan[cursor_chan]);
 		cursor_pos = state.patpos + state.chan[cursor_chan].next;
-		cursor_moved(FALSE);
+		cursor_moved(false);
 		break;
 	case VK_UP:
 		if (control)
@@ -1277,10 +1277,10 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 		if (shift)
 			paste_sel();
 		else
-			track_insert(1, cast(BYTE *)"\xC9".ptr);
+			track_insert(1, cast(ubyte *)"\xC9".ptr);
 		break;
 	case VK_BACK:
-		if (!move_cursor(&cursor_back, FALSE))
+		if (!move_cursor(&cursor_back, false))
 			break;
 		shift = 0;
 		goto case;
@@ -1315,7 +1315,7 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 		if (control) {
 			if (wParam == 'C') copy_sel();
 			else if (wParam == 'V') paste_sel();
-			else if (wParam == 'X') delete_sel(TRUE);
+			else if (wParam == 'X') delete_sel(true);
 			else if (wParam == VK_OEM_COMMA) decrementDuration();
 			else if (wParam == VK_OEM_PERIOD) incrementDuration();
 			else if (wParam == '1') setDuration(0x60);
@@ -1337,7 +1337,7 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 extern(Windows) LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE: hwndTracker = hWnd; break;
-	case WM_DESTROY: hwndTracker = NULL; break;
+	case WM_DESTROY: hwndTracker = null; break;
 	case WM_KEYDOWN: tracker_keydown(wParam); break;
 	case WM_MOUSEWHEEL:
 		scroll_to(state.patpos - (zoom * cast(short)HIWORD(wParam)) / WHEEL_DELTA);
@@ -1359,25 +1359,25 @@ extern(Windows) LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 	case WM_LBUTTONDOWN:
 		SetFocus(hWnd);
 		cursor_to_xy(LOWORD(lParam), HIWORD(lParam),
-			GetKeyState(VK_SHIFT) & 0x8000);
+			!!(GetKeyState(VK_SHIFT) & 0x8000));
 		break;
 	case WM_MOUSEMOVE:
 		if (wParam & MK_LBUTTON)
-			cursor_to_xy(LOWORD(lParam), HIWORD(lParam), TRUE);
+			cursor_to_xy(LOWORD(lParam), HIWORD(lParam), true);
 		break;
 	case WM_CONTEXTMENU:
 		TrackPopupMenu(GetSubMenu(hcontextmenu, 0), 0,
-			LOWORD(lParam), HIWORD(lParam), 0, hwndMain, NULL);
+			LOWORD(lParam), HIWORD(lParam), 0, hwndMain, null);
 		break;
 	case WM_SETFOCUS:
 		if (editbox_had_focus) {
-			editbox_had_focus = FALSE;
-			cursor_track = NULL; // force update of editbox text
-			cursor_moved(FALSE);
+			editbox_had_focus = false;
+			cursor_track = null; // force update of editbox text
+			cursor_moved(false);
 		} else
 			// fallthrough
 	case WM_KILLFOCUS:
-		InvalidateRect(hWnd, NULL, FALSE);
+		InvalidateRect(hWnd, null, false);
 		break;
 	case WM_PAINT: tracker_paint(hWnd); break;
 	default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -1394,10 +1394,10 @@ private void show_state(int pos, const char *buf) nothrow {
 	rc.top = (pos & 15) * font_height + 1;
 	rc.right = rc.left + 60;
 	rc.bottom = rc.top + font_height;
-	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], cast(uint)strlen(buf), NULL);
+	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], cast(uint)strlen(buf), null);
 }
 
-private void show_simple_state(int pos, BYTE value) nothrow {
+private void show_simple_state(int pos, ubyte value) nothrow {
 	char[3] buf;
 	sprintf(&buf[0], "%02X", value);
 	show_state(pos, &buf[0]);
@@ -1412,7 +1412,7 @@ private void show_slider_state(int pos, slider *s) nothrow {
 	show_state(pos, &buf[0]);
 }
 
-private void show_oscillator_state(int pos, BYTE start, BYTE speed, BYTE range) nothrow {
+private void show_oscillator_state(int pos, ubyte start, ubyte speed, ubyte range) nothrow {
 	char[9] buf;
 	if (range)
 		sprintf(&buf[0], "%02X %02X %02X", start, speed, range);

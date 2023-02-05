@@ -71,7 +71,7 @@ void move_controls(HWND hWnd, window_template *t, LPARAM lParam) nothrow {
 		if (y < 0) y += height;
 		if (xsize <= 0) xsize += width;
 		if (ysize <= 0) ysize += height;
-		MoveWindow(GetDlgItem(hWnd, c.id), x, top + y, xsize, ysize, TRUE);
+		MoveWindow(GetDlgItem(hWnd, c.id), x, top + y, xsize, ysize, true);
 	}
 	t.winsize = lParam;
 }

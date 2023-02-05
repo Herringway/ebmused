@@ -32,16 +32,16 @@ __gshared private ptrdiff_t selectedInstrument = 0;
 private immutable control_desc[10] inst_list_controls = [
 	{ "Static",  10, 10,100, 20, "Sample Directory:", 0, 0 },
 	{ "Static",  13, 30,180, 20, "    Strt Loop Size", 1, 0 },
-	{ "ListBox", 10, 50,180,-60, NULL, 2, WS_BORDER | WS_VSCROLL }, //Sample Directory ListBox
+	{ "ListBox", 10, 50,180,-60, null, 2, WS_BORDER | WS_VSCROLL }, //Sample Directory ListBox
 
 	{ "Static", 200, 10,100, 20, "Instrument Config:", 0, 0 },
 	{ "Static", 203, 30,160, 20, "S#  ADSR/Gain Tuning", 3, 0 },
-	{ "ListBox",200, 50,180,-60, NULL, 4, WS_BORDER | WS_VSCROLL }, //Instrument Config ListBox
+	{ "ListBox",200, 50,180,-60, null, 4, WS_BORDER | WS_VSCROLL }, //Instrument Config ListBox
 
 	{ "Static", 400, 10,100, 20, "Instrument test:", 0, 0},
-	{ "ebmused_insttest",400, 30,140,260, NULL, 3, 0 },
+	{ "ebmused_insttest",400, 30,140,260, null, 3, 0 },
 	{ "Static", 400, 300,100, 20, "MIDI In Device:", 0, 0},
-	{ "ComboBox", 400, 320, 140, 200, NULL, IDC_MIDIINCOMBO, CBS_DROPDOWNLIST | WS_VSCROLL },
+	{ "ComboBox", 400, 320, 140, 200, null, IDC_MIDIINCOMBO, CBS_DROPDOWNLIST | WS_VSCROLL },
 ];
 __gshared private window_template inst_list_template = {
 	inst_list_template_num, inst_list_template_lower, 0, 0, &inst_list_controls[0]
@@ -50,7 +50,7 @@ __gshared private window_template inst_list_template = {
 __gshared private ubyte[64] valid_insts;
 __gshared private int[8] cnote;
 
-int note_from_key(int key, BOOL shift) nothrow {
+int note_from_key(int key, bool shift) nothrow {
 	if (key == VK_OEM_PERIOD) return 0x48; // continue
 	if (key == VK_SPACE) return 0x49; // rest
 	if (shift) {
@@ -138,12 +138,12 @@ __gshared private WNDPROC ListBoxWndProc;
 // Custom window procedure for the instrument ListBox
 extern(Windows) private LRESULT InstListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30))) {
-		int note = note_from_key(cast(int)wParam, FALSE);
+		int note = note_from_key(cast(int)wParam, false);
 		if (note >= 0 && note < 0x48)
 			note_on(note, 24);
 	}
 	if (uMsg == WM_KEYUP) {
-		int note = note_from_key(cast(int)wParam, FALSE);
+		int note = note_from_key(cast(int)wParam, false);
 		if (note >= 0 && note < 0x48)
 			note_off(note);
 	}
@@ -212,8 +212,8 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 			cast(LONG_PTR)&InstListWndProc);
 
 		for (int i = 0; i < 128; i++) { //filling out the Sample Directory ListBox
-			if (samp[i].data == NULL) continue;
-			WORD *ptr = cast(WORD *)&spc[0x6C00 + 4*i];
+			if (samp[i].data == null) continue;
+			ushort *ptr = cast(ushort *)&spc[0x6C00 + 4*i];
 			sprintf(&buf[0], "%02X: %04X %04X %4d", i,
 				ptr[0], ptr[1], samp[i].length >> 4);
 			SendMessageA(samplist, LB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
@@ -230,7 +230,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 			*p++ = cast(ubyte)i;
 		}
 		if (sound_init())
-			song_playing = TRUE;
+			song_playing = true;
 		timer_speed = 0;
 		memset(&state.chan, 0, state.chan.sizeof);
 		for (int ch = 0; ch < 8; ch++) {
@@ -262,7 +262,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		break;
 	}
 	case WM_COMMAND: {
-		WORD id = LOWORD(wParam), action = HIWORD(wParam);
+		ushort id = LOWORD(wParam), action = HIWORD(wParam);
 		switch (id) {
 		case IDC_MIDIINCOMBO:
 			if (action == CBN_SELCHANGE) {
@@ -285,7 +285,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		move_controls(hWnd, &inst_list_template, lParam);
 		break;
 	case WM_DESTROY:
-		song_playing = FALSE;
+		song_playing = false;
 		state = pattop_state;
 		timer_speed = 500;
 		chmask = prev_chmask;

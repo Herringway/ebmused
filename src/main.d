@@ -36,7 +36,7 @@ auto hwndEditor() { return tab_hwnd[2]; }
 auto hwndPackList() { return tab_hwnd[3]; }
 
 __gshared song cur_song;
-__gshared BYTE[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
+__gshared ubyte[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
 __gshared ptrdiff_t current_block = -1;
 __gshared song_state pattop_state, state;
 __gshared int octave = 2;
@@ -91,7 +91,7 @@ BOOL get_original_rom() nothrow {
 		NULL,
 		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
 	try {
-		BOOL ret = file && open_orig_rom(file);
+		bool ret = file && open_orig_rom(file);
 		metadata_changed |= ret;
 		return ret;
 	} catch (Exception) {
@@ -220,13 +220,13 @@ static void export_spc() nothrow {
 				if (!res_handle) {
 					MessageBox2("Blank SPC could not be loaded.", "Export SPC", MB_ICONEXCLAMATION);
 				} else {
-					BYTE* res_data = cast(BYTE*)LockResource(res_handle);
+					ubyte* res_data = cast(ubyte*)LockResource(res_handle);
 					DWORD spc_size = SizeofResource(NULL, res);
 					const WORD header_size = 0x100;
 					const WORD footer_size = 0x100;
 
 					// Copy blank SPC to byte array
-					BYTE* new_spc = cast(BYTE*)malloc(spc_size);
+					ubyte* new_spc = cast(ubyte*)malloc(spc_size);
 					memcpy(new_spc, res_data, spc_size);
 
 					// Copy packs/blocks to byte array
@@ -252,7 +252,7 @@ static void export_spc() nothrow {
 					memcpy(new_spc + 0x140, &repeat_address, 2);
 
 					// Set BGM to load
-					const BYTE bgm = cast(BYTE)(selected_bgm + 1);
+					const ubyte bgm = cast(ubyte)(selected_bgm + 1);
 					memcpy(new_spc + 0x1F4, &bgm, 1);
 
 					// Save byte array to file

@@ -85,7 +85,7 @@ __gshared window_template bgm_list_template = window_template(
 	0, 0, bgm_list_controls.ptr
 );
 
-private void set_bgm_info(BYTE *packs_used, int spc_addr) nothrow {
+private void set_bgm_info(ubyte *packs_used, int spc_addr) nothrow {
 	for (int i = 0; i < 3; i++)
 		SetDlgItemHex(hwndBGMList, IDC_BGM_IPACK_1+i, packs_used[i], 2);
 	SetDlgItemHex(hwndBGMList, IDC_BGM_SPCADDR, spc_addr, 4);
@@ -145,7 +145,7 @@ void load_instruments() nothrow {
 	initialize_state();
 }
 
-private void load_music(BYTE *packs_used, int spc_addr) nothrow {
+private void load_music(ubyte *packs_used, int spc_addr) nothrow {
 	packs_loaded[0] = packs_used[0];
 	packs_loaded[1] = packs_used[1];
 	load_songpack(packs_used[2]);
@@ -246,11 +246,11 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			break;
 		}
 		case IDC_SAVE_INFO: {
-			BYTE[3] new_pack_used;
+			ubyte[3] new_pack_used;
 			for (int i = 0; i < 3; i++) {
 				int pack = GetDlgItemHex(hWnd, IDC_BGM_IPACK_1 + i);
 				if (pack < 0) break;
-				new_pack_used[i] = cast(BYTE)pack;
+				new_pack_used[i] = cast(ubyte)pack;
 			}
 			int new_spc_address = GetDlgItemHex(hWnd, IDC_BGM_SPCADDR);
 			if (new_spc_address < 0 || new_spc_address > 0xFFFF) break;
@@ -292,7 +292,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			}
 			break;
 		case IDC_LOAD_BGM: {
-			BYTE[3] pack_used;
+			ubyte[3] pack_used;
 			int spc_address;
 			for (int i = 0; i < 3; i++) {
 				pack_used[i] = cast(ubyte)GetDlgItemHex(hWnd, IDC_BGM_IPACK_1 + i);

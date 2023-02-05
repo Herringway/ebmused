@@ -2,7 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
-import core.sys.windows.windows;
+import core.sys.windows.windows : MB_ICONERROR;
 import std.string;
 import ebmusv2;
 import structs;
@@ -17,7 +17,7 @@ import ranges;
 
 extern(C):
 
-immutable DWORD[169] pack_orig_crc = [
+immutable uint[169] pack_orig_crc = [
 	0x35994B97, 0xDB04D065, 0xC13D8165, 0xEEFF028E, 0x5330392D, 0x705AEBBC,
 	0x4ED3BBAB, 0xFF11F6A1, 0x9E69B6C1, 0xBF0F580B, 0x0460DAD8, 0xD3EEC6FB,
 	0x082C8FC1, 0x5B81C947, 0xE157E6C2, 0x641EB570, 0x79C6A5D2, 0xFE892ACA,
@@ -108,7 +108,7 @@ block *get_cur_block() nothrow {
 		if (current_block >= 0 && current_block < p.block_count)
 			return &p.blocks[current_block];
 	}
-	return NULL;
+	return null;
 }
 
 void select_block(ptrdiff_t block_) nothrow {
@@ -117,7 +117,7 @@ void select_block(ptrdiff_t block_) nothrow {
 	free_song(&cur_song);
 
 	block *b = get_cur_block();
-	if (b != NULL) {
+	if (b != null) {
 		memcpy(&spc[b.spc_address], b.data, b.size);
 		decompile_song(&cur_song, b.spc_address, b.spc_address + b.size);
 	}
@@ -145,7 +145,7 @@ block *save_cur_song_to_pack() nothrow {
 		free(b.data);
 		b.data = cast(ubyte*)memcpy(malloc(size), &spc[cur_song.address], size);
 		inmem_packs[packs_loaded[2]].status |= IPACK_CHANGED;
-		cur_song.changed = FALSE;
+		cur_song.changed = false;
 	}
 	return b;
 }
@@ -192,16 +192,16 @@ void move_block(int to) nothrow {
 	p.status |= IPACK_CHANGED;
 }
 
-BOOL save_pack(int pack_) nothrow {
+bool save_pack(int pack_) nothrow {
 	static char[512] error;
 	pack *p = &inmem_packs[pack_];
 	pack *rp = &rom_packs[pack_];
 	if (!(p.status & IPACK_CHANGED))
-		return FALSE;
+		return false;
 
 	if (!orig_rom.isOpen) {
 		MessageBox2("Before saving a pack, the original ROM file needs to be specified so that it can be used to ensure that no unused remnants of previous versions of the pack are left in the file in such a way that they would increase the patch size.", "Save", 48);
-		return FALSE;
+		return false;
 	}
 	int size = calc_pack_size(p);
 	int conflict = check_range(p.start_address, p.start_address + size, pack_);
@@ -215,12 +215,12 @@ BOOL save_pack(int pack_) nothrow {
 		else
 			sprintf(p2, "Would overlap with pack %02X", conflict);
 		MessageBox2(error.fromStringz, "Save", 48);
-		return FALSE;
+		return false;
 	}
 
 	int old_start = rp.start_address;
 	int old_size = calc_pack_size(rp);
-	BYTE *filler = cast(BYTE*)malloc(old_size);
+	ubyte *filler = cast(ubyte*)malloc(old_size);
 
 	try {
 		orig_rom.seek(old_start - 0xC00000 + orig_rom_offset, SEEK_SET);
@@ -229,7 +229,7 @@ BOOL save_pack(int pack_) nothrow {
 		rom.rawWrite(filler[0 .. old_size]);
 	} catch (Exception e) {
 		MessageBox2(e.msg, "Save", 16);
-		return FALSE;
+		return false;
 	}
 	free(filler);
 	try {
@@ -246,7 +246,7 @@ BOOL save_pack(int pack_) nothrow {
 		rom.flush();
 	} catch (Exception e) {
 		MessageBox2(e.msg, "Save", 16);
-		return FALSE;
+		return false;
 	}
 
 	p.status &= ~IPACK_CHANGED;
@@ -265,7 +265,7 @@ BOOL save_pack(int pack_) nothrow {
 		free_pack(p);
 
 	// an SPC range that previously had no free blocks might have some now
-	metadata_changed = TRUE;
+	metadata_changed = true;
 
-	return TRUE;
+	return true;
 }

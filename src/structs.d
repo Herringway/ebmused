@@ -1,30 +1,17 @@
 
 import core.stdc.config;
 
-version = CreateWindow;
-version(CreateWindow) {
-	import core.sys.windows.windows;
-} else {
-	alias BYTE = ubyte;
-	alias WORD = ushort;
-	alias DWORD = cpp_ulong;
-	alias BOOL = int;
-	enum FALSE = 0;
-	enum TRUE = 1;
-	alias HWND = void *;
-}
-
 // structure used for track or subroutine
 // "size" does not include the ending [00] byte
 struct track {
 	int size;
-	BYTE *track; // NULL for inactive track
+	ubyte *track; // NULL for inactive track
 };
 
 alias song = Song;
 struct Song {
-	WORD address;
-	BYTE changed;
+	ushort address;
+	ubyte changed;
 	int order_length;
 	int *order;
 	int repeat, repeat_pos;
@@ -36,63 +23,63 @@ struct Song {
 
 alias parser = Parser;
 struct Parser {
-	BYTE *ptr;
-	BYTE *sub_ret;
+	ubyte *ptr;
+	ubyte *sub_ret;
 	int sub_start;
-	BYTE sub_count;
-	BYTE note_len;
+	ubyte sub_count;
+	ubyte note_len;
 };
 
 struct slider {
-	WORD cur, delta;
-	BYTE cycles, target;
+	ushort cur, delta;
+	ubyte cycles, target;
 };
 
-	struct channel_state {
-		BYTE *ptr;
+struct channel_state {
+	ubyte *ptr;
 
-		int next; // time left in note
+	int next; // time left in note
 
-		slider note; BYTE cur_port_start_ctr;
-		BYTE note_len, note_style;
+	slider note; ubyte cur_port_start_ctr;
+	ubyte note_len, note_style;
 
-		BYTE note_release; // time to release note, in cycles
+	ubyte note_release; // time to release note, in cycles
 
-		int sub_start; // current subroutine number
-		BYTE *sub_ret; // where to return to after sub
-		BYTE sub_count; // number of loops
+	int sub_start; // current subroutine number
+	ubyte *sub_ret; // where to return to after sub
+	ubyte sub_count; // number of loops
 
-		BYTE inst; // instrument
-		BYTE inst_adsr1;
-		BYTE finetune;
-		byte transpose;
-		slider panning; BYTE pan_flags;
-		slider volume;
-		BYTE total_vol;
-		byte left_vol, right_vol;
+	ubyte inst; // instrument
+	ubyte inst_adsr1;
+	ubyte finetune;
+	byte transpose;
+	slider panning; ubyte pan_flags;
+	slider volume;
+	ubyte total_vol;
+	byte left_vol, right_vol;
 
-		BYTE port_type, port_start, port_length, port_range;
-		BYTE vibrato_start, vibrato_speed, vibrato_max_range, vibrato_fadein;
-		BYTE tremolo_start, tremolo_speed, tremolo_range;
+	ubyte port_type, port_start, port_length, port_range;
+	ubyte vibrato_start, vibrato_speed, vibrato_max_range, vibrato_fadein;
+	ubyte tremolo_start, tremolo_speed, tremolo_range;
 
-		BYTE vibrato_phase, vibrato_start_ctr, cur_vib_range;
-		BYTE vibrato_fadein_ctr, vibrato_range_delta;
-		BYTE tremolo_phase, tremolo_start_ctr;
+	ubyte vibrato_phase, vibrato_start_ctr, cur_vib_range;
+	ubyte vibrato_fadein_ctr, vibrato_range_delta;
+	ubyte tremolo_phase, tremolo_start_ctr;
 
-		sample *samp;
-		int samp_pos, note_freq;
+	sample *samp;
+	int samp_pos, note_freq;
 
-		double env_height; // envelope height
-		double decay_rate;
-	}
+	double env_height; // envelope height
+	double decay_rate;
+}
 struct song_state {
 	channel_state[16] chan;
 	byte transpose;
 	slider volume;
 	slider tempo;
 	int next_timer_tick, cycle_timer;
-	BYTE first_CA_inst; // set with FA
-	BYTE repeat_count;
+	ubyte first_CA_inst; // set with FA
+	ubyte repeat_count;
 	int ordnum;
 	int patpos; // Number of cycles since top of pattern
 };
@@ -104,8 +91,8 @@ struct sample {
 };
 
 struct block {
-	WORD size, spc_address;
-	BYTE *data; // only used for inmem packs
+	ushort size, spc_address;
+	ubyte *data; // only used for inmem packs
 };
 
 // rom_packs contain info about the pack as it stands in the ROM file

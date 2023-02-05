@@ -18,7 +18,7 @@ __gshared int bufsize = 2205;
 __gshared int chmask = 255;
 __gshared int timer_speed = 500;
 __gshared HWAVEOUT hwo;
-__gshared BOOL song_playing;
+__gshared bool song_playing;
 
 __gshared WAVEHDR[2] wh;
 __gshared WAVEHDR* curbuf = &wh[0];
@@ -153,7 +153,7 @@ private void fill_buffer() nothrow {
 	curbuf = &wh[(curbuf - &wh[0]) ^ 1];
 }
 
-void winmm_message(UINT uMsg) nothrow {
+void winmm_message(uint uMsg) nothrow {
 	if (uMsg == MM_WOM_CLOSE)
 		return;
 
@@ -172,7 +172,7 @@ void winmm_message(UINT uMsg) nothrow {
 	}
 }
 
-extern(Windows) ptrdiff_t OptionsDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+extern(Windows) ptrdiff_t OptionsDlgProc(HWND hWnd, uint uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		SetDlgItemInt(hWnd, IDC_RATE, mixrate, FALSE);

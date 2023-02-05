@@ -1,7 +1,6 @@
 import core.stdc.math;
 import core.stdc.stdio;
 import core.stdc.string;
-import core.sys.windows.windows;
 import ebmusv2;
 import structs;
 import sound;
@@ -12,7 +11,7 @@ import tracker;
 
 extern(C):
 
-__gshared BYTE[65536] spc;
+__gshared ubyte[65536] spc;
 __gshared int inst_base = 0x6E00;
 
 // note style tables, from 6F80
@@ -26,7 +25,7 @@ immutable ubyte[16] volume_table = [
 
 static void calc_total_vol(song_state *st, channel_state *c, byte trem_phase) nothrow
 {
-	BYTE v = (trem_phase << 1 ^ trem_phase >> 7) & 0xFF;
+	ubyte v = (trem_phase << 1 ^ trem_phase >> 7) & 0xFF;
 	v = ~(v * c.tremolo_range >> 8) & 0xFF;
 
 	v = v * (st.volume.cur >> 8) >> 8;
@@ -36,12 +35,12 @@ static void calc_total_vol(song_state *st, channel_state *c, byte trem_phase) no
 }
 
 static int calc_vol_3(channel_state *c, int pan, int flag) nothrow {
-	static const BYTE[21] pan_table = [
+	static const ubyte[21] pan_table = [
 		0x00, 0x01, 0x03, 0x07, 0x0D, 0x15, 0x1E, 0x29,
 		0x34, 0x42, 0x51, 0x5E, 0x67, 0x6E, 0x73, 0x77,
 		0x7A, 0x7C, 0x7D, 0x7E, 0x7F
 	];
-	const BYTE *ph = &pan_table[pan >> 8];
+	const ubyte *ph = &pan_table[pan >> 8];
 	int v = ph[0] + ((ph[1] - ph[0]) * (pan & 255) >> 8);
 	v = v * c.total_vol >> 8;
 	if (c.pan_flags & flag) v = -v;
@@ -73,7 +72,7 @@ void set_inst(song_state *st, channel_state *c, int inst) nothrow {
 	if (inst >= 0x80)
 		inst += st.first_CA_inst - 0xCA;
 
-	BYTE *idata = &spc[inst_base + 6*inst];
+	ubyte *idata = &spc[inst_base + 6*inst];
 	if (inst < 0 || inst >= 64 || !samp[idata[0]].data ||
 		(idata[4] == 0 && idata[5] == 0))
 	{
@@ -97,7 +96,7 @@ void set_inst(song_state *st, channel_state *c, int inst) nothrow {
 
 // calculate how far to advance the sample pointer on each output sample
 void calc_freq(channel_state *c, int note16) nothrow {
-	static const WORD[13] note_freq_table = [
+	static const ushort[13] note_freq_table = [
 		0x085F, 0x08DF, 0x0965, 0x09F4, 0x0A8C, 0x0B2C, 0x0BD6, 0x0C8B,
 		0x0D4A, 0x0E14, 0x0EEA, 0x0FCD, 0x10BE
 	];
@@ -106,7 +105,7 @@ void calc_freq(channel_state *c, int note16) nothrow {
 	if (note16 >= 0x3400)     note16 += (note16 >> 8) - 0x34;
 	else if (note16 < 0x1300) note16 += ((note16 >> 8) - 0x13) << 1;
 
-	if (cast(WORD)note16 >= 0x5400) {
+	if (cast(ushort)note16 >= 0x5400) {
 		c.note_freq = 0;
 		return;
 	}
@@ -118,7 +117,7 @@ void calc_freq(channel_state *c, int note16) nothrow {
 	freq <<= 1;
 	freq >>= 6 - octave;
 
-	BYTE *inst_freq = &spc[inst_base + 6*c.inst + 4];
+	ubyte *inst_freq = &spc[inst_base + 6*c.inst + 4];
 	freq *= (inst_freq[0] << 8 | inst_freq[1]);
 	freq >>= 8;
 	freq &= 0x3fff;
@@ -305,7 +304,7 @@ void load_pattern() nothrow {
 			state.repeat_count = cast(ubyte)cur_song.repeat;
 		if (state.repeat_count == 0) {
 			state.ordnum--;
-			song_playing = FALSE;
+			song_playing = false;
 			return;
 		}
 		state.ordnum = cur_song.repeat_pos;
@@ -364,12 +363,12 @@ static void CF7(channel_state *c) nothrow {
 }
 
 // $07F9 + $0625
-static BOOL do_cycle(song_state *st) nothrow {
+static bool do_cycle(song_state *st) nothrow {
 	int ch;
 	channel_state *c;
 	for (ch = 0; ch < 8; ch++) {
 		c = &st.chan[ch];
-		if (c.ptr == NULL) continue; //8F0
+		if (c.ptr == null) continue; //8F0
 
 		if (--c.next >= 0) {
 			CF7(c);
@@ -382,7 +381,7 @@ static BOOL do_cycle(song_state *st) nothrow {
 						? cur_song.sub[c.sub_start].track
 						: c.sub_ret;
 				else
-					return FALSE;
+					return false;
 			} else if (*p < 0x80) {
 				c.note_len = *p;
 				if (p[1] < 0x80) {
@@ -411,7 +410,7 @@ static BOOL do_cycle(song_state *st) nothrow {
 	slide(&st.volume);
 
 	for (c = &st.chan[0]; c != &st.chan[8]; c++) {
-		if (c.ptr == NULL) continue;
+		if (c.ptr == null) continue;
 
 		// @ 0C40
 		slide(&c.volume);
@@ -437,11 +436,11 @@ static BOOL do_cycle(song_state *st) nothrow {
 		// 0C86: volume stuff
 		calc_vol_2(c, c.panning.cur);
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL do_cycle_no_sound(song_state *st) nothrow {
-	BOOL ret = do_cycle(st);
+bool do_cycle_no_sound(song_state *st) nothrow {
+	bool ret = do_cycle(st);
 	if (ret) {
 		int ch;
 		for (ch = 0; ch < 8; ch++)
@@ -461,50 +460,50 @@ static int sub_cycle_calc(song_state *st, int delta) nothrow {
 static void do_sub_cycle(song_state *st) nothrow {
 	channel_state *c;
 	for (c = &st.chan[0]; c != &st.chan[8]; c++) {
-		if (c.ptr == NULL) continue;
+		if (c.ptr == null) continue;
 		// $0DD0
 
-		BOOL changed = FALSE;
+		bool changed = false;
 		if (c.tremolo_range && c.tremolo_start_ctr == c.tremolo_start) {
 			int p = c.tremolo_phase + sub_cycle_calc(st, c.tremolo_speed);
-			changed = TRUE;
+			changed = true;
 			calc_total_vol(st, c, cast(byte)p);
 		}
 		int pan = c.panning.cur;
 		if (c.panning.cycles) {
 			pan += sub_cycle_calc(st, c.panning.delta);
-			changed = TRUE;
+			changed = true;
 		}
 		if (changed) calc_vol_2(c, pan);
 
-		changed = FALSE;
+		changed = false;
 		int note = c.note.cur; // $0BBC
 		if (c.note.cycles && c.cur_port_start_ctr == 0) {
 			note += sub_cycle_calc(st, c.note.delta);
-			changed = TRUE;
+			changed = true;
 		}
 		if (c.cur_vib_range && c.vibrato_start_ctr == c.vibrato_start) {
 			int p = c.vibrato_phase + sub_cycle_calc(st, c.vibrato_speed);
 			note += calc_vib_disp(c, p);
-			changed = TRUE;
+			changed = true;
 		}
 		if (changed) calc_freq(c, note);
 	}
 }
 
-BOOL do_timer() nothrow {
+bool do_timer() nothrow {
 	state.cycle_timer += state.tempo.cur >> 8;
 	if (state.cycle_timer >= 256) {
 		state.cycle_timer -= 256;
 		while (!do_cycle(&state)) {
 			load_pattern();
-			if (!song_playing) return FALSE;
+			if (!song_playing) return false;
 			load_pattern_into_tracker();
 		}
 	} else {
 		do_sub_cycle(&state);
 	}
-	return TRUE;
+	return true;
 }
 
 void initialize_state() nothrow {
@@ -524,6 +523,6 @@ void initialize_state() nothrow {
 		load_pattern();
 	} else {
 		pattop_state = state;
-		song_playing = FALSE;
+		song_playing = false;
 	}
 }

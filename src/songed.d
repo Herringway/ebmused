@@ -1,7 +1,6 @@
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
-import core.sys.windows.windows;
 import std.string;
 import ebmusv2;
 import structs;
@@ -65,26 +64,26 @@ void pattern_delete(int pat) nothrow {
 	}
 }
 
-BOOL split_pattern(int pos) nothrow {
+bool split_pattern(int pos) nothrow {
 	song_state split_state;
 	char[32] buf;
 	int ch;
-	if (pos == 0) return FALSE;
+	if (pos == 0) return false;
 	split_state = pattop_state;
 	while (split_state.patpos < pos) {
-		if (!do_cycle_no_sound(&split_state)) return FALSE;
+		if (!do_cycle_no_sound(&split_state)) return false;
 	}
 	for (ch = 0; ch < 8; ch++) {
 		channel_state *c = &split_state.chan[ch];
 		if (c.sub_count && *c.ptr != '\0') {
 			sprintf(&buf[0], "Track %d is inside a subroutine", ch);
 			MessageBox2(buf.fromStringz, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
-			return FALSE;
+			return false;
 		}
 		if (c.next != 0) {
 			sprintf(&buf[0], "Track %d is inside a note", ch);
 			MessageBox2(buf.fromStringz, "Cannot split", 48/*MB_ICONEXCLAMATION*/);
-			return FALSE;
+			return false;
 		}
 	}
 	int this_pat = cur_song.order[split_state.ordnum];
@@ -92,10 +91,10 @@ BOOL split_pattern(int pos) nothrow {
 	track *bp = ap - 8;
 	for (ch = 0; ch < 8; ch++) {
 		channel_state *c = &split_state.chan[ch];
-		BYTE *splitptr = c.sub_count ? c.sub_ret : c.ptr;
-		if (splitptr == NULL) {
+		ubyte *splitptr = c.sub_count ? c.sub_ret : c.ptr;
+		if (splitptr == null) {
 			ap[ch].size = 0;
-			ap[ch].track = NULL;
+			ap[ch].track = null;
 			continue;
 		}
 		int before_size = cast(int)(splitptr - bp[ch].track);
@@ -119,19 +118,19 @@ BOOL split_pattern(int pos) nothrow {
 	for (int i = 0; i < cur_song.order_length; i++)
 		if (cur_song.order[i] == this_pat)
 			order_insert(i + 1, this_pat + 1);
-	return TRUE;
+	return true;
 }
 
-BOOL join_patterns() nothrow {
+bool join_patterns() nothrow {
 	char[60] buf;
 	if (state.ordnum+1 == cur_song.order_length)
-		return FALSE;
+		return false;
 	int this_pat = cur_song.order[state.ordnum];
 	int next_pat = cur_song.order[state.ordnum+1];
 	int i;
 	if (this_pat == next_pat) {
 		MessageBox2("Next pattern is same as current", "Cannot join", 48);
-		return FALSE;
+		return false;
 	}
 	for (i = 0; i < cur_song.order_length; i++) {
 		if (cur_song.order[i] == this_pat) {
@@ -145,35 +144,35 @@ nonconsec:
 				this_pat, next_pat);
 error:
 			MessageBox2(buf.fromStringz, "Cannot join", 48/*MB_ICONEXCLAMATION*/);
-			return FALSE;
+			return false;
 		}
 	}
 	track *tp = &cur_song.pattern[this_pat][0];
 	track *np = &cur_song.pattern[next_pat][0];
 	for (i = 0; i < 8; i++) {
-		if (tp[i].track == NULL && np[i].track != NULL) {
+		if (tp[i].track == null && np[i].track != null) {
 			sprintf(&buf[0], "Track %d active in pattern %d but not in %d",
 				i, next_pat, this_pat);
 			goto error;
-		} else if (tp[i].track != NULL && np[i].track == NULL) {
+		} else if (tp[i].track != null && np[i].track == null) {
 			sprintf(&buf[0], "Track %d active in pattern %d but not in %d",
 				i, this_pat, next_pat);
 			goto error;
 		}
 	}
 	for (i = 0; i < 8; i++) {
-		if (tp[i].track == NULL) continue;
+		if (tp[i].track == null) continue;
 		int oldsize = tp[i].size;
 		tp[i].size += np[i].size;
 		tp[i].track = cast(ubyte*)realloc(tp[i].track, tp[i].size + 1);
 		memcpy(tp[i].track + oldsize, np[i].track, np[i].size + 1);
 	}
 	pattern_delete(next_pat);
-	return TRUE;
+	return true;
 }
 
 // Check to see if a part of a track can be made into a subroutine
-static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) nothrow {
+static int check_repeat(ubyte *sub, int subsize, ubyte *p, int size) nothrow {
 	if (size % subsize != 0) return 0;
 	int cnt = size / subsize;
 	if (cnt > 255) return 0;
@@ -184,7 +183,7 @@ static int check_repeat(BYTE *sub, int subsize, BYTE *p, int size) nothrow {
 	return cnt;
 }
 
-int create_sub(BYTE *start, BYTE *end, int *count) nothrow {
+int create_sub(ubyte *start, ubyte *end, int *count) nothrow {
 	int size = cast(int)(end - start);
 	int sub;
 	int subsize;
@@ -201,10 +200,10 @@ int create_sub(BYTE *start, BYTE *end, int *count) nothrow {
 		}
 	}
 
-	if (!validate_track(start, size, TRUE))
+	if (!validate_track(start, size, true))
 		return -1;
 
-	BYTE *p = start;
+	ubyte *p = start;
 	while (p < end) {
 		p = next_code(p);
 		subsize = cast(int)(p - start);
