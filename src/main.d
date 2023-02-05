@@ -514,7 +514,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		// strcpy(tabs_font.lfFaceName, "Tahoma");
 		// TODO: Refactor so this new font can be deleted
 		HFONT hTabsFont = CreateFontIndirect(&tabs_font);
-		SendMessageA(tabs, WM_SETFONT, cast(ulong)hTabsFont, TRUE);
+		SendMessageA(tabs, WM_SETFONT, cast(size_t)hTabsFont, TRUE);
 		break;
 	}
 	case WM_SIZE:

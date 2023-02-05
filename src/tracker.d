@@ -373,7 +373,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, null);
 			SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
 			// This font was set up earlier by the ebmused_order control
-			SendMessage(b, WM_SETFONT, cast(ulong)hOrderFont, 0);
+			SendMessage(b, WM_SETFONT, cast(size_t)hOrderFont, 0);
 		}
 		EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
 		break;
