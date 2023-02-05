@@ -135,7 +135,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			save_all_packs();
 			break;
 		case ID_CLOSE:
-			if (!close_rom()) break;
+			if (!handleErrorsUI(close_rom(), true)) break;
 			SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
 			SetWindowTextA(hWnd, "EarthBound Music Editor");
 			break;
@@ -212,7 +212,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		break;
 	}
 	case WM_CLOSE:
-		if (!close_rom()) break;
+		if (!handleErrorsUI(close_rom(), true)) break;
 		DestroyWindow(hWnd);
 		break;
 	case WM_DESTROY:

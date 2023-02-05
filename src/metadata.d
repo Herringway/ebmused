@@ -212,26 +212,17 @@ immutable bgm_orig_title = [
 	"Giygas - Weakening (Quiet)",
 ];
 
-bool open_orig_rom(char *filename) {
-	File f;
-	try {
-		f = File(filename.fromStringz, "rb");
-	} catch (Exception e) {
-		MessageBox2(e.msg, filename.fromStringz, MB_ICONEXCLAMATION);
-		return false;
-	}
+void open_orig_rom(char *filename) {
+	File f = File(filename.fromStringz, "rb");
 	long size = f.size;
 	if (size != rom_size) {
-		MessageBox2("File is not same size as current ROM", filename.fromStringz, MB_ICONEXCLAMATION);
-		f.close();
-		return false;
+		throw new EbmusedWarningException("File is not same size as current ROM", filename.fromStringz.idup);
 	}
 	if (orig_rom.isOpen) orig_rom.close();
 	orig_rom = f;
 	orig_rom_offset = size & 0x200;
 	free(orig_rom_filename);
 	orig_rom_filename = strdup(filename);
-	return true;
 }
 
 void load_metadata() nothrow {

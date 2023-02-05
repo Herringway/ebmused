@@ -110,7 +110,7 @@ int scale_x(int n) nothrow {
 int scale_y(int n) nothrow {
 	return MulDiv(n, dpi_y, 96);
 }
-private auto errorClassToIcon(ErrorClass errorClass) @safe pure nothrow {
+auto errorClassToIcon(ErrorClass errorClass) @safe pure nothrow {
 	final switch (errorClass) {
 		case ErrorClass.error: return MB_ICONERROR;
 		case ErrorClass.warning: return MB_ICONEXCLAMATION;
@@ -124,4 +124,17 @@ T handleErrorsUI(T)(lazy T val) {
 	} catch (Exception e) {
 		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
 	}
+	static if (!is(T == void)) {
+		return val.init;
+	}
+}
+T handleErrorsUI(T)(lazy T val, T defaultValue) {
+	try {
+		return val;
+	} catch (EbmusedException e) {
+		MessageBox2(e.title, e.msg, errorClassToIcon(e.errorClass));
+	} catch (Exception e) {
+		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
+	}
+	return defaultValue;
 }

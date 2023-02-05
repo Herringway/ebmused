@@ -1,6 +1,8 @@
 module win32.dialogs;
 
 import win32.handles;
+import win32.misc;
+import misc;
 import metadata;
 
 import core.sys.windows.windows;
@@ -28,9 +30,14 @@ BOOL get_original_rom() nothrow {
 		NULL,
 		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
 	try {
-		bool ret = file && open_orig_rom(file);
-		metadata_changed |= ret;
-		return ret;
+		if (file) {
+			open_orig_rom(file);
+		}
+		metadata_changed |= !!file;
+		return !!file;
+	} catch (EbmusedException e) {
+		MessageBox2(e.msg, e.title, errorClassToIcon(e.errorClass));
+		return false;
 	} catch (Exception) {
 		return false;
 	}

@@ -63,7 +63,7 @@ immutable ubyte[3] rom_menu_cmds = [
 	ID_SAVE_ALL, ID_CLOSE, 0
 ];
 
-bool close_rom() nothrow {
+bool close_rom() {
 	if (!rom.isOpen) return true;
 
 	save_cur_song_to_pack();
@@ -87,7 +87,7 @@ bool close_rom() nothrow {
 	try {
 		save_metadata();
 	} catch (Exception e) {
-		MessageBox2(e.msg, filename, MB_ICONEXCLAMATION);
+		throw new EbmusedWarningException(e.msg, filename.fromStringz.idup);
 	}
 	try {
 		rom.close();
