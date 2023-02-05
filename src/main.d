@@ -12,6 +12,7 @@ import core.sys.windows.commctrl;
 import std.algorithm.comparison : min;
 import std.exception;
 import std.format;
+import std.logger;
 import std.string;
 import ebmusv2;
 import sound;
@@ -444,7 +445,7 @@ static void export_spc() nothrow {
 							memcpy(new_spc + header_size + b.spc_address, b.data, size);
 
 							if (size > spc_size - footer_size) {
-								printf("SPC pack %d block %d too large.\n", packs_loaded[pack_], block_);
+								assumeWontThrow(infof("SPC pack %d block %d too large.\n", packs_loaded[pack_], block_));
 							}
 						}
 					}
@@ -604,7 +605,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_ABOUT), hWnd, &AboutDlgProc);
 			break;
 		}
-		default: printf("Command %d not yet implemented\n", id); break;
+		default: assumeWontThrow(infof("Command %d not yet implemented\n", id)); break;
 		}
 		break;
 	}
