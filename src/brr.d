@@ -23,7 +23,7 @@ ushort sample_ptr_base = 0x6C00;
 // This makes no attempt to simulate the behavior of the SPC on key on. It ignores the header of a
 // block on key on. That would complicate decoding, because you could have a loop that results in a
 // sample that ends, or that has a second loop point, and... no one does that. Right?
-private int32_t sample_length(const uint8_t *spc_memory, uint16_t start) nothrow {
+private int32_t sample_length(const uint8_t *spc_memory, uint16_t start) {
 	int32_t end = start;
 	uint8_t b;
 	do {
@@ -37,7 +37,7 @@ private int32_t sample_length(const uint8_t *spc_memory, uint16_t start) nothrow
 		return -1;
 }
 
-static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_block) nothrow {
+static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_block) {
 	int range = block[0] >> 4;
 	int filter = (block[0] >> 2) & 3;
 
@@ -87,7 +87,7 @@ static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_b
 	}
 }
 
-static int get_full_loop_len(const sample *sa, const int16_t *next_block, int first_loop_start) nothrow {
+static int get_full_loop_len(const sample *sa, const int16_t *next_block, int first_loop_start) {
 	int loop_start = sa.length - sa.loop_len;
 	int no_match_found = true;
 	while (loop_start >= first_loop_start && no_match_found) {
@@ -107,7 +107,7 @@ static int get_full_loop_len(const sample *sa, const int16_t *next_block, int fi
 		return -1;
 }
 
-void decode_samples(const(ubyte)* ptrtable) nothrow {
+void decode_samples(const(ubyte)* ptrtable) {
 	for (uint sn = 0; sn < 128; sn++) {
 		sample *sa = &samp[sn];
 		int start = ptrtable[0] | (ptrtable[1] << 8);
@@ -204,7 +204,7 @@ void decode_samples(const(ubyte)* ptrtable) nothrow {
 	}
 }
 
-void free_samples() nothrow {
+void free_samples() {
 	for (int sn = 0; sn < 128; sn++) {
 		free(samp[sn].data);
 		samp[sn].data = null;

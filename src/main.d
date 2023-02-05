@@ -55,7 +55,7 @@ struct spcDetails {
 	ubyte music_index;
 }
 
-bool try_parse_music_table(const(ubyte) *spc, spcDetails *out_details) nothrow {
+bool try_parse_music_table(const(ubyte) *spc, spcDetails *out_details) {
 	if (memcmp(&spc[0], "\x1C\x5D\xF5".ptr, 3) != 0) return false;
 	ushort addr_hi = *(cast(ushort*)&spc[3]);
 
@@ -83,7 +83,7 @@ bool try_parse_music_table(const(ubyte) *spc, spcDetails *out_details) nothrow {
 	return true;
 }
 
-bool try_parse_music_address(const(ubyte)* spc, spcDetails *out_details) nothrow {
+bool try_parse_music_address(const(ubyte)* spc, spcDetails *out_details) {
 	ushort loop_addr = *cast(ushort *)&spc[0x40];
 	ushort *terminator = cast(ushort *)&spc[loop_addr];
 	while (terminator[0]) {
@@ -142,7 +142,7 @@ bool try_parse_music_address(const(ubyte)* spc, spcDetails *out_details) nothrow
 	return true;
 }
 
-bool try_parse_inst_directory(const BYTE *spc, spcDetails *out_details) nothrow {
+bool try_parse_inst_directory(const BYTE *spc, spcDetails *out_details) {
 	if (memcmp(spc, "\xCF\xDA\x14\x60\x98".ptr, 5) == 0 && memcmp(&spc[6], "\x14\x98".ptr, 2) == 0 && spc[9] == 0x15) {
 		out_details.instrument_table_addr = spc[5] | (spc[8] << 8);
 		return true;
@@ -156,7 +156,7 @@ enum SPC_RESULTS {
 	HAS_MUSIC_TABLE = 1 << 1,
 	HAS_INSTRUMENTS = 1 << 2
 }
-SPC_RESULTS try_parse_spc(const(ubyte)* spc, spcDetails *out_details) nothrow {
+SPC_RESULTS try_parse_spc(const(ubyte)* spc, spcDetails *out_details) {
 	bool foundMusic = false,
 		foundMusicTable = false,
 		foundInst = false;
@@ -208,7 +208,7 @@ SPC_RESULTS try_parse_spc(const(ubyte)* spc, spcDetails *out_details) nothrow {
 	if (foundInst) results |= SPC_RESULTS.HAS_INSTRUMENTS;
 	return results;
 }
-static void import_spc() nothrow {
+static void import_spc() {
 	char *file = open_dialog(&GetOpenFileNameA,
 		cast(char*)"SPC Savestates (*.spc)\0*.spc\0All Files\0*.*\0".ptr,
 		null,

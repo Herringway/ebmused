@@ -1,62 +1,60 @@
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
+import core.runtime;
+import std.logger;
+import std.range;
 import std.string;
 import ebmusv2;
 import structs;
-import win32.misc;
+import misc;
 import main;
 import parser;
 import play;
 
-__gshared char[60] errbuf;
-__gshared const(char)* decomp_error;
-
-
-const(char)* internal_validate_track(ubyte *data, int size, bool is_sub) nothrow {
+void internal_validate_track(ubyte *data, int size, bool is_sub) {
+	infof("Called from %s", defaultTraceHandler());
 	for (int pos = 0; pos < size; ) {
 		int byte_ = data[pos];
 		int next = pos + 1;
 
 		if (byte_ < 0x80) {
-			if (byte_ == 0) return "Track can not contain [00]";
+			if (byte_ == 0) {
+				throw new EbmusedWarningException("Track can not contain [00]", "");
+			}
 			if (next != size && data[next] < 0x80) next++;
-			if (next == size) return "Track can not end with note-length code";
+			if (next == size) {
+				throw new EbmusedWarningException("Track can not end with note-length code", "");
+			}
 		} else if (byte_ >= 0xE0) {
-			if (byte_ == 0xFF) return "Invalid code [FF]";
+			if (byte_ == 0xFF) {
+				throw new EbmusedWarningException("Invalid code [FF]", "");
+			}
 			next += code_length.ptr[byte_ - 0xE0];
 			if (next > size) {
-				char *p = strcpy(&errbuf[0], "Incomplete code: [") + 18;
-				for (; pos < size; pos++)
-					p += sprintf(p, "%02X ", data[pos]);
-				for (; pos < next; pos++)
-					p += sprintf(p, "?? ");
-				p[-1] = ']';
-				return &errbuf[0];
+				throw new EbmusedWarningException(format!"Incomplete code [%(%02X %) %(?? %)]"(data[pos .. size], iota(next - size)), "");
 			}
 
 			if (byte_ == 0xEF) {
-				if (is_sub) return "Can't call sub from within a sub";
+				if (is_sub) {
+					throw new EbmusedWarningException("Can't call sub from within a sub", "");
+				}
 				int sub = *cast(ushort *)&data[pos+1];
 				if (sub >= cur_song.subs) {
-					sprintf(&errbuf[0], "Subroutine %d not present", sub);
-					return &errbuf[0];
+					throw new EbmusedWarningException(format!"Subroutine %d not present"(sub), "");
 				}
-				if (data[pos+3] == 0) return "Subroutine loop count can not be 0";
+				if (data[pos+3] == 0) {
+					throw new EbmusedWarningException("Subroutine loop count can not be 0", "");
+				}
 			}
 		}
 
 		pos = next;
 	}
-	return null;
 }
 
-bool validate_track(ubyte *data, int size, bool is_sub) nothrow {
-	const(char)* err = internal_validate_track(data, size, is_sub);
-	if (err) {
-		MessageBox2(err.fromStringz, [], 48/*MB_ICONEXCLAMATION*/);
-		return false;
-	}
+bool validate_track(ubyte *data, int size, bool is_sub) {
+	internal_validate_track(data, size, is_sub);
 	return true;
 }
 
@@ -120,13 +118,12 @@ int compile_song(Song *s) nothrow {
 	return cast(int)((tout - &spc[0]) - s.address);
 }
 
-void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
+void decompile_song(Song *s, int start_addr, int end_addr) {
 	ushort *sub_table;
 	int first_pattern;
 	int tracks_start;
 	int tracks_end;
 	int pat_bytes;
-	const(char)* error = &errbuf[0];
 	s.address = cast(ushort)start_addr;
 	s.changed = false;
 
@@ -136,8 +133,10 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 	while (*wp >= 0x100) wp++;
 	s.order_length = cast(int)(wp - cast(ushort *)&spc[start_addr]);
 	if (s.order_length == 0) {
-		error = "Order length is 0";
-		goto error1;
+		throw new Exception("Order length is 0");
+	}
+	scope(failure) {
+		s.order_length = 0;
 	}
 	s.repeat = *wp++;
 	if (s.repeat == 0) {
@@ -145,12 +144,10 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 	} else {
 		int repeat_off = *wp++ - start_addr;
 		if (repeat_off & 1 || repeat_off < 0 || repeat_off >= s.order_length*2) {
-			sprintf(&errbuf[0], "Bad repeat pointer: %x", repeat_off + start_addr);
-			goto error1;
+			throw new Exception(format!"Bad repeat pointer: %x"(repeat_off + start_addr));
 		}
 		if (*wp++ != 0) {
-			error = "Repeat not followed by end of song";
-			goto error1;
+			throw new Exception("Repeat not followed by end of song");
 		}
 		s.repeat_pos = repeat_off >> 1;
 	}
@@ -168,8 +165,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 
 	pat_bytes = tracks_start - first_pattern;
 	if (pat_bytes <= 0 || pat_bytes & 15) {
-		sprintf(&errbuf[0], "Bad first track pointer: %x", tracks_start);
-		goto error1;
+			throw new Exception(format!"Bad first track pointer: %x"(tracks_start));
 	}
 
 	if ((cast(ubyte *)wp)+1 >= &spc[end_addr]) {
@@ -181,8 +177,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 		while ((tp = *cast(ushort *)&spc[tpp -= 2]) == 0) {}
 
 		if (tp < tracks_start || tp >= end_addr) {
-			sprintf(&errbuf[0], "Bad last track pointer: %x", tp);
-			goto error1;
+			throw new Exception(format!"Bad last track pointer: %x"(tp));
 		}
 
 
@@ -200,21 +195,42 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 
 	// Now the number of patterns is known, so go back and get the order
 	s.order = cast(int*)malloc(int.sizeof * s.order_length);
+	scope(failure) {
+		free(s.order);
+	}
 	wp = cast(ushort *)&spc[start_addr];
 	for (int i = 0; i < s.order_length; i++) {
 		int pat = *wp++ - first_pattern;
 		if (pat < 0 || pat >= pat_bytes || pat & 15) {
-			sprintf(&errbuf[0], "Bad pattern pointer: %x", pat + first_pattern);
-			goto error2;
+			throw new Exception(format!"Bad pattern pointer: %x"(pat + first_pattern));
 		}
 		s.order[i] = pat >> 4;
 	}
 
 	sub_table = null;
+	scope(exit) {
+		if (sub_table !is null) {
+			free(sub_table);
+		}
+	}
 	s.patterns = pat_bytes >> 4;
 	s.pattern = cast(track[8]*)calloc((*s.pattern).sizeof, s.patterns);
+	scope(failure) {
+		free(s.pattern);
+		for (int trk = 0; trk < s.patterns * 8; trk++) {
+			free(s.pattern[0][trk].track);
+		}
+	}
 	s.subs = 0;
 	s.sub = null;
+	scope(failure) {
+		if (s.sub !is null) {
+			free(s.sub);
+		}
+		for (int trk = 0; trk < s.subs; trk++) {
+			free(s.sub[trk].track);
+		}
+	}
 
 	wp = cast(ushort *)&spc[first_pattern];
 	for (int trk = 0; trk < s.patterns * 8; trk++) {
@@ -222,8 +238,7 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 		int start = *wp++;
 		if (start == 0) continue;
 		if (start < tracks_start || start >= tracks_end) {
-			sprintf(&errbuf[0], "Bad track pointer: %x", start);
-			goto error3;
+			throw new Exception(format!"Bad track pointer: %x"(start));
 		}
 
 		// Go through track list (patterns) and find first track that has an address higher than us.
@@ -267,39 +282,12 @@ void decompile_song(Song *s, int start_addr, int end_addr) nothrow {
 				while (*subend != 0) subend = next_code(subend);
 				st.size = cast(int)(subend - substart);
 				st.track = cast(ubyte*)memcpy(malloc(st.size + 1), substart, st.size + 1);
-				const(char)* e = internal_validate_track(st.track, st.size, true);
-				if (e) {
-					error = e;
-					goto error3;
-				}
+				internal_validate_track(st.track, st.size, true);
 			}
 			*cast(ushort *)(p + 1) = cast(ushort)sub_entry;
 		}
-		const(char)* e = internal_validate_track(t.track, t.size, false);
-		if (e) {
-			error = e;
-			goto error3;
-		}
+		internal_validate_track(t.track, t.size, false);
 	}
-	free(sub_table);
-
-	return;
-
-error3:
-	free(sub_table);
-	for (int trk = 0; trk < s.patterns * 8; trk++)
-		free(s.pattern[0][trk].track);
-	for (int trk = 0; trk < s.subs; trk++)
-		free(s.sub[trk].track);
-	free(s.sub);
-	free(s.pattern);
-error2:
-	free(s.order);
-error1:
-	s.order_length = 0;
-	decomp_error = error;
-	printf("Can't decompile: %s\n", error);
-	return;
 }
 
 void free_song(Song *s) nothrow {

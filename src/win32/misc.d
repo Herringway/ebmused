@@ -10,6 +10,7 @@ import std.logger;
 import std.string;
 import std.stdio;
 import ebmusv2;
+import misc;
 import win32.handles;
 
 private int dpi_x;
@@ -109,4 +110,18 @@ int scale_x(int n) nothrow {
 int scale_y(int n) nothrow {
 	return MulDiv(n, dpi_y, 96);
 }
-
+private auto errorClassToIcon(ErrorClass errorClass) @safe pure nothrow {
+	final switch (errorClass) {
+		case ErrorClass.error: return MB_ICONERROR;
+		case ErrorClass.warning: return MB_ICONEXCLAMATION;
+	}
+}
+T handleErrorsUI(T)(lazy T val) {
+	try {
+		return val;
+	} catch (EbmusedException e) {
+		MessageBox2(e.title, e.msg, errorClassToIcon(e.errorClass));
+	} catch (Exception e) {
+		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
+	}
+}

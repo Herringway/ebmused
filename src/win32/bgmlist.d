@@ -120,7 +120,7 @@ private void show_cur_info() nothrow {
 	SendMessageA(cb, CB_SETCURSEL, current_block + 1, 0);
 }
 
-void load_instruments() nothrow {
+void load_instruments() {
 	free_samples();
 	memset(&spc[0], 0, 0x10000);
 	for (int i = 0; i < 2; i++) {
@@ -132,13 +132,12 @@ void load_instruments() nothrow {
 			while ((size = rom.getw()) != 0) {
 				addr = rom.getw();
 				if (size + addr >= 0x10000) {
-					MessageBox2("Invalid SPC block", "Error loading instruments", MB_ICONERROR);
-					return;
+					throw new EbmusedErrorException("Invalid SPC block", "Error loading instruments");
 				}
 				rom.rawRead(spc[addr .. addr + size]);
 			}
 		} catch (Exception e) {
-			MessageBox2(e.msg, "Error reading file", MB_ICONERROR);
+			throw new EbmusedErrorException("Error reading file", e.msg, e.file, e.line);
 		}
 	}
 	decode_samples(&spc[0x6C00]);
@@ -148,7 +147,7 @@ void load_instruments() nothrow {
 	initialize_state();
 }
 
-private void load_music(ubyte *packs_used, int spc_addr) nothrow {
+private void load_music(ubyte *packs_used, int spc_addr) {
 	packs_loaded[0] = packs_used[0];
 	packs_loaded[1] = packs_used[1];
 	load_songpack(packs_used[2]);
@@ -157,13 +156,13 @@ private void load_music(ubyte *packs_used, int spc_addr) nothrow {
 	load_instruments();
 }
 
-private void song_selected(ptrdiff_t index) nothrow {
+private void song_selected(ptrdiff_t index) {
 	selected_bgm = index;
 	show_bgm_info();
 	load_music(&pack_used[index][0], song_address[index]);
 }
 
-private void song_search() nothrow {
+private void song_search() {
 	char[MAX_TITLE_LEN+1] str = 0;
 	char *endhex;
 	GetDlgItemTextA(hwndBGMList, IDC_SEARCH_TEXT, &str[0], MAX_TITLE_LEN+1);
@@ -230,11 +229,12 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 				SetWindowTextA(cast(HWND)lParam, orig_rom_filename);
 			break;
 		case IDC_SEARCH:
-			song_search();
+			handleErrorsUI(song_search());
 			break;
 		case IDC_LIST:
-			if (action == LBN_SELCHANGE)
-				song_selected(SendMessageA(cast(HWND)lParam, LB_GETCURSEL, 0, 0));
+			if (action == LBN_SELCHANGE) {
+				handleErrorsUI(song_selected(SendMessageA(cast(HWND)lParam, LB_GETCURSEL, 0, 0)));
+			}
 			break;
 		case IDC_TITLE_CHANGE: {
 			GetDlgItemTextA(hWnd, IDC_TITLE, &buf[4], MAX_TITLE_LEN+1);
@@ -285,7 +285,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 					show_cur_info();
 				} else {
 					packs_loaded[id - IDC_CUR_IPACK_1] = cast(ubyte)num;
-					load_instruments();
+					handleErrorsUI(load_instruments());
 				}
 			}
 			break;
@@ -301,7 +301,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 				pack_used[i] = cast(ubyte)GetDlgItemHex(hWnd, IDC_BGM_IPACK_1 + i);
 			}
 			spc_address = GetDlgItemHex(hWnd, IDC_BGM_SPCADDR);
-			load_music(&pack_used[0], spc_address);
+			handleErrorsUI(load_music(&pack_used[0], spc_address));
 			break;
 		}
 		case IDC_CHANGE_BGM:

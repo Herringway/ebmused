@@ -291,9 +291,13 @@ extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wP
 	} else if (uMsg == WM_CHAR && wParam == '\r') {
 		int len = GetWindowTextLength(hWnd) + 1;
 		char *p = cast(char*)malloc(len);
+		scope(exit) {
+			free(p);
+		}
 		Parser c = cursor;
 		GetWindowTextA(hWnd, p, len);
-		if (text_to_track(p, cursor_track, !!c.sub_count)) {
+		try {
+			text_to_track(p, cursor_track, !!c.sub_count);
 			// Find out where the editbox's caret was, and
 			// move the tracker cursor appropriately.
 			DWORD start;
@@ -305,8 +309,9 @@ extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wP
 			// XXX: may point to middle of a code
 			restore_cursor(t, new_pos);
 			SetFocus(hwndTracker);
+		} catch (Exception e) {
+			MessageBox2(e.msg, "", MB_ICONERROR);
 		}
-		free(p);
 		return 0;
 	}
 	return CallWindowProc(EditWndProc, hWnd, uMsg, wParam, lParam);
@@ -545,12 +550,12 @@ private void tracker_paint(HWND hWnd) nothrow {
 		int x = (rc.left + rc.right) >> 1;
 		int y = (rc.top + rc.bottom - font_height) >> 1;
 		ExtTextOutA(hdc, x, y, ETO_OPAQUE, &rc, &str[0], str.length, null);
-		if (get_cur_block() != null && decomp_error) {
-			y += font_height;
-			TextOutA(hdc, x, y, "Additional information:", 23);
-			y += font_height;
-			TextOutA(hdc, x, y, decomp_error, cast(int)strlen(decomp_error));
-		}
+		//if (get_cur_block() != null) {
+		//	y += font_height;
+		//	TextOutA(hdc, x, y, "Additional information:", 23);
+		//	y += font_height;
+		//	TextOutA(hdc, x, y, decomp_error, cast(int)strlen(decomp_error));
+		//}
 		goto paint_end;
 	}
 
@@ -927,8 +932,11 @@ private bool copy_sel() nothrow {
 	ubyte *start = sel_start;
 	ubyte *end = sel_end;
 	if (start == end) return false;
-	if (!validate_track(start, cast(int)(end - start), !!cursor.sub_count))
+	try {
+		validate_track(start, cast(int)(end - start), !!cursor.sub_count);
+	} catch (Exception) {
 		return false;
+	}
 	if (!OpenClipboard(hwndMain)) return false;
 	EmptyClipboard();
 	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, text_length(start, end));
@@ -945,9 +953,12 @@ private void paste_sel() nothrow {
 	if (hglb) {
 		char *txt = cast(char*)GlobalLock(hglb);
 		track temp_track = { 0, null };
-		if (text_to_track(txt, &temp_track, !!cursor.sub_count)) {
+		try {
+			text_to_track(txt, &temp_track, !!cursor.sub_count);
 			track_insert(temp_track.size, temp_track.track);
 			free(temp_track.track);
+		} catch (Exception e) {
+			MessageBox2(e.msg, "", MB_ICONERROR);
 		}
 		GlobalUnlock(hglb);
 	}
@@ -961,8 +972,12 @@ private void delete_sel(bool cut) nothrow {
 	ubyte* end = sel_end;
 	if (end == t.track + t.size) {
 		// Don't let the track end with a note-length code
-		if (!validate_track(t.track, cast(int)(start - t.track), !!cursor.sub_count))
+		try {
+			validate_track(t.track, cast(int)(start - t.track), !!cursor.sub_count);
+		} catch (Exception e) {
+			MessageBox2(e.msg, "", MB_ICONERROR);
 			return;
+		}
 	}
 	if (cut) {
 		if (!copy_sel()) return;
@@ -1074,7 +1089,7 @@ private void setDuration(ubyte duration) nothrow
 	updateOrInsertDuration(&setDurationCallback, duration);
 }
 
-void editor_command(int id) nothrow {
+void editor_command(int id) {
 	switch (id) {
 	case ID_CUT: delete_sel(true); break;
 	case ID_COPY: copy_sel(); break;

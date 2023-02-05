@@ -5,7 +5,7 @@ import core.stdc.string;
 import std.string;
 import ebmusv2;
 import structs;
-import win32.misc;
+import misc;
 import parser;
 import song;
 
@@ -18,7 +18,7 @@ private int unhex(int chr) nothrow {
 	return -1;
 }
 
-int calc_track_size_from_text(char *p) nothrow {
+uint calc_track_size_from_text(char *p) {
 	char[60] buf = 0;
 	int size = 0;
 	while (*p) {
@@ -34,19 +34,16 @@ int calc_track_size_from_text(char *p) nothrow {
 			size += 4;
 		} else {
 			sprintf(&buf[0], "Bad character: '%c'", c);
-			MessageBox2(buf.fromStringz, null, 48);
-			return -1;
+			throw new EbmusedWarningException(buf.fromStringz.idup, "");
 		}
 	}
 	return size;
 }
 
 // returns 1 if successful
-bool text_to_track(char *str, track *t, bool is_sub) nothrow {
+void text_to_track(char *str, track *t, bool is_sub) {
 	ubyte *data;
 	int size = calc_track_size_from_text(str);
-	if (size < 0)
-		return false;
 
 	int pos;
 	if (size == 0 && !is_sub) {
@@ -73,11 +70,13 @@ bool text_to_track(char *str, track *t, bool is_sub) nothrow {
 		}
 		data[pos] = '\0';
 	}
-
-	if (!validate_track(data, size, is_sub)) {
-		free(data);
-		return false;
+	scope(failure) {
+		if (data !is null) {
+			free(data);
+		}
 	}
+
+	validate_track(data, size, is_sub);
 
 	if (size != t.size || memcmp(data, t.track, size)) {
 		t.size = size;
@@ -86,7 +85,6 @@ bool text_to_track(char *str, track *t, bool is_sub) nothrow {
 	} else {
 		free(data);
 	}
-	return false;
 }
 
 //// includes ending '\0'

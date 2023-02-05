@@ -139,7 +139,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			SetWindowTextA(hWnd, "EarthBound Music Editor");
 			break;
 		case ID_IMPORT: import_(); break;
-		case ID_IMPORT_SPC: import_spc(); break;
+		case ID_IMPORT_SPC: handleErrorsUI(import_spc()); break;
 		case ID_EXPORT: export_(); break;
 		case ID_EXPORT_SPC: export_spc(); break;
 		case ID_EXIT: DestroyWindow(hWnd); break;
@@ -167,7 +167,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case ID_SET_DURATION_4:
 		case ID_SET_DURATION_5:
 		case ID_SET_DURATION_6:
-			editor_command(id);
+			handleErrorsUI(editor_command(id));
 			break;
 		case ID_PLAY:
 			if (cur_song.order_length == 0)

@@ -65,3 +65,31 @@ ushort getw(ref File file) nothrow {
 	} catch (Exception) {}
 	return buf[0];
 }
+
+enum ErrorClass {
+	error,
+	warning,
+}
+
+class EbmusedException : Exception {
+	string title;
+	ErrorClass errorClass;
+	this(string msg, string file, size_t line) {
+		super(msg, file, line);
+	}
+}
+
+class EbmusedErrorException : EbmusedException {
+	this(string message, string title, string file = __FILE__, size_t line = __LINE__) {
+		this.title = title;
+		errorClass = ErrorClass.error;
+		super(message, file, line);
+	}
+}
+class EbmusedWarningException : EbmusedException {
+	this(string message, string title, string file = __FILE__, size_t line = __LINE__) {
+		this.title = title;
+		errorClass = ErrorClass.warning;
+		super(message, file, line);
+	}
+}

@@ -118,7 +118,7 @@ void select_block(ptrdiff_t block_) nothrow {
 	block *b = get_cur_block();
 	if (b != null) {
 		memcpy(&spc[b.spc_address], b.data, b.size);
-		decompile_song(&cur_song, b.spc_address, b.spc_address + b.size);
+		handleErrorsUI(decompile_song(&cur_song, b.spc_address, b.spc_address + b.size));
 	}
 	initialize_state();
 }
