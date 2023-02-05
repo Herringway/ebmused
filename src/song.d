@@ -12,7 +12,7 @@ import main;
 import parser;
 import play;
 
-void internal_validate_track(ubyte *data, int size, bool is_sub) {
+void validate_track(ubyte *data, int size, bool is_sub) {
 	for (int pos = 0; pos < size; ) {
 		int byte_ = data[pos];
 		int next = pos + 1;
@@ -50,11 +50,6 @@ void internal_validate_track(ubyte *data, int size, bool is_sub) {
 
 		pos = next;
 	}
-}
-
-bool validate_track(ubyte *data, int size, bool is_sub) {
-	internal_validate_track(data, size, is_sub);
-	return true;
 }
 
 int compile_song(Song *s) nothrow {
@@ -281,11 +276,11 @@ void decompile_song(Song *s, int start_addr, int end_addr) {
 				while (*subend != 0) subend = next_code(subend);
 				st.size = cast(int)(subend - substart);
 				st.track = cast(ubyte*)memcpy(malloc(st.size + 1), substart, st.size + 1);
-				internal_validate_track(st.track, st.size, true);
+				validate_track(st.track, st.size, true);
 			}
 			*cast(ushort *)(p + 1) = cast(ushort)sub_entry;
 		}
-		internal_validate_track(t.track, t.size, false);
+		validate_track(t.track, t.size, false);
 	}
 }
 
