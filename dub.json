@@ -7,7 +7,7 @@
 			"name": "win32",
 			"targetType": "executable",
 			"preBuildCommands-windows": ["buildres.cmd"],
-			"sourceFiles-windows": ["src/win32/resource.res"],
+			"sourceFiles-windows": ["resources/win32/resource.res"],
 			"versions": ["win32"]
 		}
 	]
