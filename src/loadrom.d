@@ -97,9 +97,6 @@ bool close_rom() nothrow {
 	enable_menu_items(&rom_menu_cmds[0], MF_GRAYED);
 	free(areas);
 	free_metadata();
-	free_samples();
-	free_song(&cur_song);
-	song_playing = false;
 	initialize_state();
 	for (int i = 0; i < NUM_PACKS; i++) {
 		free(rom_packs[i].blocks);
@@ -122,6 +119,10 @@ bool open_rom(char *filename, bool readonly) {
 
 	if (!close_rom())
 		return false;
+
+	free_samples();
+	free_song(&cur_song);
+	song_playing = false;
 
 	rom_size = cast(int)f.size;
 	rom_offset = rom_size & 0x200;
