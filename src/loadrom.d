@@ -13,7 +13,6 @@ import misc;
 import win32.dialogs;
 import win32.handles;
 import win32.id;
-import win32.sound;
 import win32.misc;
 import packs;
 import main;

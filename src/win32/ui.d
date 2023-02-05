@@ -24,6 +24,7 @@ import loadrom;
 import main;
 import misc;
 import packs;
+import play;
 import structs;
 
 import std.exception;
@@ -276,6 +277,7 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
 
 //	SetUnhandledExceptionFilter(exfilter);
 
+	onTimerTick = &load_pattern_into_tracker;
 	set_up_fonts();
 
 	hwndMain = CreateWindowW("ebmused_main", "EarthBound Music Editor",

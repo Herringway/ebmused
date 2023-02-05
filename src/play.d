@@ -3,12 +3,15 @@ import core.stdc.stdio;
 import core.stdc.string;
 import ebmusv2;
 import structs;
-import win32.sound;
 import main;
 import parser;
 import brr;
-import win32.tracker;
 
+__gshared int bufsize = 2205;
+__gshared int chmask = 255;
+__gshared int timer_speed = 500;
+__gshared bool song_playing;
+__gshared int mixrate = 44100;
 __gshared ubyte[65536] spc;
 __gshared int inst_base = 0x6E00;
 
@@ -20,6 +23,82 @@ immutable ubyte[16] volume_table = [
 	0x19, 0x33, 0x4c, 0x66, 0x72, 0x7f, 0x8c, 0x99,
 	0xa5, 0xb2, 0xbf, 0xcc, 0xd8, 0xe5, 0xf2, 0xfc
 ];
+
+void function() nothrow onTimerTick;
+
+void fill_buffer(short[2][] buffer) nothrow {
+	auto bufp = &buffer[0];
+	int bytes_left = cast(int)buffer.length;
+
+	//int bytes_left = curbuf.dwBufferLength;
+	while (bytes_left > 0) {
+		if ((state.next_timer_tick -= timer_speed) < 0) {
+			state.next_timer_tick += mixrate;
+			if (!do_timer()) {
+				//curbuf.dwBufferLength -= bytes_left;
+				break;
+			}
+		}
+
+//		for (int blah = 0; blah < 50; blah++) {
+		int left = 0, right = 0;
+		channel_state *c = &state.chan[0];
+		for (int cm = chmask; cm; c++, cm >>= 1) {
+			if (!(cm & 1)) continue;
+
+			if (c.samp_pos < 0) continue;
+
+			int ipos = c.samp_pos >> 15;
+
+			sample *s = c.samp;
+			if (!s) continue;
+			if (ipos > s.length) {
+				printf("This can't happen. %d > %d\n", ipos, s.length);
+				c.samp_pos = -1;
+				continue;
+			}
+
+			if (c.note_release != 0) {
+				if (c.inst_adsr1 & 0x1F)
+					c.env_height *= c.decay_rate;
+			} else {
+				// release takes about 15ms (not dependent on tempo)
+				c.env_height -= (32000 / 512.0) / mixrate;
+				if (c.env_height < 0) {
+					c.samp_pos = -1;
+					continue;
+				}
+			}
+			double volume = c.env_height / 128.0;
+			assert(s.data);
+			int s1 = s.data[ipos];
+			s1 += (s.data[ipos+1] - s1) * (c.samp_pos & 0x7FFF) >> 15;
+
+			left  += cast(int)(s1 * c.left_vol  * volume);
+			right += cast(int)(s1 * c.right_vol * volume);
+
+//			int sp = c.samp_pos;
+
+			c.samp_pos += c.note_freq;
+			if ((c.samp_pos >> 15) >= s.length) {
+				if (s.loop_len)
+					c.samp_pos -= s.loop_len << 15;
+				else
+					c.samp_pos = -1;
+			}
+//			if (blah != 1) c.samp_pos = sp;
+		}
+		if (left < -32768) left = -32768;
+		else if (left > 32767) left = 32767;
+		if (right < -32768) right = -32768;
+		else if (right > 32767) right = 32767;
+		(*bufp)[0] = cast(short)left;
+		(*bufp)[1] = cast(short)right;
+//		}
+		bufp++;
+		bytes_left -= 4;
+	}
+}
 
 static void calc_total_vol(song_state *st, channel_state *c, byte trem_phase) nothrow
 {
@@ -496,7 +575,9 @@ bool do_timer() nothrow {
 		while (!do_cycle(&state)) {
 			load_pattern();
 			if (!song_playing) return false;
-			load_pattern_into_tracker();
+			if (onTimerTick !is null) {
+				onTimerTick();
+			}
 		}
 	} else {
 		do_sub_cycle(&state);
