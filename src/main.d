@@ -205,6 +205,8 @@ private void export_() nothrow {
 	fclose(f);
 }
 
+private immutable blankSPC = cast(immutable(ubyte)[])import("blank.spc");
+
 static void export_spc() nothrow {
 	if (cur_song.order_length < 1) {
 		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
@@ -215,49 +217,42 @@ static void export_spc() nothrow {
 			if (!f) {
 				MessageBox2(strerror(errno).fromStringz, "Export SPC", MB_ICONEXCLAMATION);
 			} else {
-				HRSRC res = FindResource(hinstance, MAKEINTRESOURCE(IDRC_SPC), RT_RCDATA);
-				HGLOBAL res_handle = res ? LoadResource(NULL, res) : NULL;
-				if (!res_handle) {
-					MessageBox2("Blank SPC could not be loaded.", "Export SPC", MB_ICONEXCLAMATION);
-				} else {
-					ubyte* res_data = cast(ubyte*)LockResource(res_handle);
-					DWORD spc_size = SizeofResource(NULL, res);
-					const WORD header_size = 0x100;
-					const WORD footer_size = 0x100;
+				const spc_size = blankSPC.length;
+				const WORD header_size = 0x100;
+				const WORD footer_size = 0x100;
 
-					// Copy blank SPC to byte array
-					ubyte* new_spc = cast(ubyte*)malloc(spc_size);
-					memcpy(new_spc, res_data, spc_size);
+				// Copy blank SPC to byte array
+				ubyte* new_spc = cast(ubyte*)malloc(spc_size);
+				new_spc[0 .. spc_size] = blankSPC;
 
-					// Copy packs/blocks to byte array
-					for (int pack_ = 0; pack_ < 3; pack_++) {
-						if (packs_loaded[pack_] < NUM_PACKS) {
-							pack *p = load_pack(packs_loaded[pack_]);
-							for (int block_ = 0; block_ < p.block_count; block_++) {
-								block *b = &p.blocks[block_];
+				// Copy packs/blocks to byte array
+				for (int pack_ = 0; pack_ < 3; pack_++) {
+					if (packs_loaded[pack_] < NUM_PACKS) {
+						pack *p = load_pack(packs_loaded[pack_]);
+						for (int block_ = 0; block_ < p.block_count; block_++) {
+							block *b = &p.blocks[block_];
 
-								// Copy block to new_spc
-								const int size = min(b.size, spc_size - b.spc_address - footer_size);
-								memcpy(new_spc + header_size + b.spc_address, b.data, size);
+							// Copy block to new_spc
+							const int size = min(b.size, spc_size - b.spc_address - footer_size);
+							memcpy(new_spc + header_size + b.spc_address, b.data, size);
 
-								if (size > spc_size - footer_size) {
-									printf("SPC pack %d block %d too large.\n", packs_loaded[pack_], block_);
-								}
+							if (size > spc_size - footer_size) {
+								printf("SPC pack %d block %d too large.\n", packs_loaded[pack_], block_);
 							}
 						}
 					}
-
-					// Set pattern repeat location
-					const WORD repeat_address = cast(WORD)(cur_song.address + 0x2*cur_song.repeat_pos);
-					memcpy(new_spc + 0x140, &repeat_address, 2);
-
-					// Set BGM to load
-					const ubyte bgm = cast(ubyte)(selected_bgm + 1);
-					memcpy(new_spc + 0x1F4, &bgm, 1);
-
-					// Save byte array to file
-					fwrite(new_spc, spc_size, 1, f);
 				}
+
+				// Set pattern repeat location
+				const WORD repeat_address = cast(WORD)(cur_song.address + 0x2*cur_song.repeat_pos);
+				memcpy(new_spc + 0x140, &repeat_address, 2);
+
+				// Set BGM to load
+				const ubyte bgm = cast(ubyte)(selected_bgm + 1);
+				memcpy(new_spc + 0x1F4, &bgm, 1);
+
+				// Save byte array to file
+				fwrite(new_spc, spc_size, 1, f);
 				fclose(f);
 			}
 		}

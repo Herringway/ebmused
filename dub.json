@@ -1,12 +1,13 @@
 {
 	"description": "earthbound music editor",
 	"name": "ebmused",
+	"stringImportPaths": ["resources"],
 	"configurations": [
 		{
 			"name": "win32",
 			"targetType": "executable",
 			"preBuildCommands-windows": ["buildres.cmd"],
-			"sourceFiles-windows": ["src/resource.res"],
+			"sourceFiles-windows": ["src/win32/resource.res"],
 			"versions": ["win32"]
 		}
 	]
