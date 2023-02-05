@@ -13,7 +13,6 @@ import parser;
 import play;
 
 void internal_validate_track(ubyte *data, int size, bool is_sub) {
-	infof("Called from %s", defaultTraceHandler());
 	for (int pos = 0; pos < size; ) {
 		int byte_ = data[pos];
 		int next = pos + 1;
