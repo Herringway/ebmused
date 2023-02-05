@@ -2,6 +2,7 @@ import core.sys.windows.windows;
 import std.string;
 import ebmusv2;
 import main;
+import misc;
 
 enum IDC_HELPTEXT = 1;
 
@@ -125,7 +126,7 @@ extern(Windows) ptrdiff_t CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, L
 				WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY,
 				0, 0, 0, 0,
 				hWnd, cast(HMENU)IDC_HELPTEXT, hinstance, NULL);
-			HFONT font = GetStockObject(ANSI_FIXED_FONT);
+			HFONT font = fixed_font();
 			SendMessage(ed, WM_SETFONT, cast(WPARAM)font, 0);
 			break;
 		}

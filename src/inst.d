@@ -188,7 +188,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 	switch (uMsg) {
 	case WM_CREATE: {
 		prev_chmask = chmask;
-		WPARAM fixed = cast(WPARAM)GetStockObject(ANSI_FIXED_FONT);
+		WPARAM fixed = cast(WPARAM)fixed_font();
 		static char[40] buf;
 
 		// HACK: For some reason when the compiler has optimization turned on, it doesn't initialize the values of inst_list_template correctly. So we'll reset them here. . .

@@ -42,7 +42,7 @@ void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
 			x, top + y, xsize, ysize,
 			hWnd, cast(HMENU)c.id, hinstance, NULL);
 		if (c.class_[1] != 'y')
-			SendMessageA(w, WM_SETFONT, cast(WPARAM)hfont, 0);
+			SendMessageA(w, WM_SETFONT, cast(WPARAM)default_font(), 0);
 	}
 }
 
