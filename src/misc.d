@@ -140,3 +140,33 @@ ushort getw(ref File file) nothrow {
 	} catch (Exception) {}
 	return buf[0];
 }
+static int dpi_x;
+static int dpi_y;
+
+void setup_dpi_scale_values() nothrow {
+	// Use the old DPI system, which works as far back as Windows 2000 Professional
+	HDC screen;
+	if (0) {
+		// Per-monitor DPI awareness checking would go here
+	} else if ((screen = GetDC(null)) != null) {
+		// https://docs.microsoft.com/en-us/previous-versions/ms969894(v=msdn.10)
+		dpi_x = GetDeviceCaps(screen, LOGPIXELSX);
+		dpi_y = GetDeviceCaps(screen, LOGPIXELSY);
+
+		ReleaseDC(null, screen);
+	} else {
+		printf("GetDC failed; filling in default values for DPI.\n");
+		dpi_x = 96;
+		dpi_y = 96;
+	}
+
+	assumeWontThrow(infof("DPI values initialized: %d %d\n", dpi_x, dpi_y));
+}
+
+int scale_x(int n) nothrow {
+	return MulDiv(n, dpi_x, 96);
+}
+
+int scale_y(int n) nothrow {
+	return MulDiv(n, dpi_y, 96);
+}

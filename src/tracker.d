@@ -94,6 +94,7 @@ __gshared private Parser cursor;
 
 __gshared private int pat_length;
 __gshared private PAINTSTRUCT ps;
+__gshared private HFONT hOrderFont;
 
 void tracker_scrolled() nothrow {
 	SetScrollPos(hwndTracker, SB_VERT, state.patpos, true);
@@ -371,6 +372,8 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0,
 				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, null);
 			SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
+			// This font was set up earlier by the ebmused_order control
+			SendMessage(b, WM_SETFONT, cast(ulong)hOrderFont, 0);
 		}
 		EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
 		break;
@@ -445,13 +448,13 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 	case WM_SIZE:
 		editor_template.divy = HIWORD(lParam) - (font_height * 7 + 17);
 		move_controls(hWnd, &editor_template, lParam);
-		int start = 10 + GetSystemMetrics(SM_CXBORDER) + pos_width;
+		int start = scale_x(10) + GetSystemMetrics(SM_CXBORDER) + pos_width;
 		int right = start;
 		for (int i = 0; i < 8; i++) {
 			int left = right + 1;
 			right = start + (tracker_width * (i + 1) >> 3);
 			MoveWindow(GetDlgItem(hWnd, IDC_ENABLE_CHANNEL_0+i),
-				left, 40, right - left, 20, true);
+				left, scale_y(40), right - left, scale_y(20), true);
 		}
 		break;
 	default:
@@ -464,9 +467,21 @@ extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 	switch (uMsg) {
 	case WM_CREATE:
 		hwndOrder = hWnd;
+		if (!hOrderFont) {
+			//LOGFONT original_font;
+			//GetObject(GetStockObject(SYSTEM_FONT), sizeof(LOGFONT), &original_font);
+
+			LOGFONT order_font;
+			GetObject(hfont, LOGFONT.sizeof, &order_font);
+			order_font.lfWeight = FW_BOLD;
+			order_font.lfHeight = scale_y(16);
+			// strcpy(order_font.lfFaceName, "Tahoma");
+			hOrderFont = CreateFontIndirect(&order_font);
+			// When do we delete this???
+		}
 		break;
 	case WM_LBUTTONDOWN: {
-		int pos = LOWORD(lParam) / 25;
+		int pos = LOWORD(lParam) / scale_x(25);
 		if (pos >= cur_song.order_length) break;
 		SetFocus(hWnd);
 		goto_order(pos);
@@ -493,12 +508,13 @@ extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		break;
 	case WM_PAINT: {
 		HDC hdc = BeginPaint(hWnd, &ps);
+		SelectObject(hdc, hOrderFont);
 		RECT rc;
 		GetClientRect(hWnd, &rc);
 		for (int i = 0; i < cur_song.order_length; i++) {
 			char[6] buf;
 			int len = sprintf(&buf[0], "%d", cur_song.order[i]);
-			rc.right = rc.left + 25;
+			rc.right = rc.left + scale_x(25);
 			COLORREF tc = 0, bc = 0;
 			if (i == pattop_state.ordnum) {
 				tc = SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
@@ -1390,9 +1406,9 @@ private HDC hdcState;
 private void show_state(int pos, const char *buf) nothrow {
 	static const WORD[6] xt = [ 20, 80, 180, 240, 300, 360 ];
 	RECT rc;
-	rc.left = xt[pos >> 4];
+	rc.left = scale_x(xt[pos >> 4]);
 	rc.top = (pos & 15) * font_height + 1;
-	rc.right = rc.left + 60;
+	rc.right = scale_x(rc.left + 60);
 	rc.bottom = rc.top + font_height;
 	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], cast(uint)strlen(buf), null);
 }

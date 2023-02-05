@@ -346,7 +346,7 @@ extern(Windows) LRESULT PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 			static const(char)*[5] colname = [ "#", "Address", "Size", "Status", "Description" ];
 			static const WORD[5] cx = [ 30, 120, 60, 100, 270 ];
 			lvc.pszText = cast(char*)colname[i];
-			lvc.cx = cx[i];
+			lvc.cx = scale_x(cx[i]);
 			ListView_InsertColumnA(rom_list, i, &lvc);
 			ListView_InsertColumnA(inmem_list, i, &lvc);
 		}

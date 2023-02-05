@@ -1,6 +1,7 @@
 import core.sys.windows.windows;
 import ebmusv2;
 import main;
+import misc;
 
 extern(C):
 
@@ -16,18 +17,21 @@ struct window_template {
 }
 
 void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
-	int top = 0;
 	int width = (cast(CREATESTRUCT *)cs).cx;
 	int winheight = (cast(CREATESTRUCT *)cs).cy;
 	t.winsize = MAKELONG(width, winheight);
+	int top = 0;
 	int height = t.divy;
 	control_desc *c = cast(control_desc*)t.controls;
 
 	for (int num = t.num; num; num--, c++) {
-		int x = c.x, y = c.y, xsize = c.xsize, ysize = c.ysize;
+		int x = scale_x(c.x);
+		int y = scale_y(c.y);
+		int xsize = scale_x(c.xsize);
+		int ysize = scale_y(c.ysize);
 		if (num == t.lower) {
-			top = t.divy;
-			height = winheight - t.divy;
+			top = height;
+			height = winheight - top;
 		}
 		if (x < 0) x += width;
 		if (y < 0) y += height;
@@ -57,7 +61,10 @@ void move_controls(HWND hWnd, window_template *t, LPARAM lParam) nothrow {
 	}
 	for (; i != end; i += dir) {
 		const control_desc *c = &t.controls[i];
-		int x = c.x, y = c.y, xsize = c.xsize, ysize = c.ysize;
+		int x = scale_x(c.x);
+		int y = scale_y(c.y);
+		int xsize = scale_x(c.xsize);
+		int ysize = scale_y(c.ysize);
 		if (i < (t.num - t.lower)) {
 			top = 0;
 			height = t.divy;

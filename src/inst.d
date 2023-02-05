@@ -72,7 +72,7 @@ static void draw_square(int note, HBRUSH brush) nothrow {
 	HDC hdc = GetDC(insttest);
 	int x = (note / 12 + 1) * 20;
 	int y = (note % 12 + 1) * 20;
-	RECT rc = { x, y, x + 19, y + 19 };
+	RECT rc = { scale_x(x), scale_y(y), scale_x(x + 20), scale_y(y + 20) };
 	FillRect(hdc, &rc, brush);
 	ReleaseDC(insttest, hdc);
 }
@@ -160,18 +160,18 @@ extern(Windows) LRESULT InstTestWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 		HDC hdc = cast(HDC)wParam;
 		set_up_hdc(hdc);
 		for (char o = '1'; o <= '6'; o++)
-			TextOutA(hdc, 20 * (o - '0'), 0, &o, 1);
+			TextOutA(hdc, scale_x(20 * (o - '0')), 0, &o, 1);
 		for (int i = 0; i < 12; i++)
 			TextOutA(hdc, 0, 20 * (i + 1), &"C C#D D#E F F#G G#A A#B "[2*i], 2);
-		Rectangle(hdc, 19, 19, 140, 260);
+		Rectangle(hdc, scale_x(19), scale_y(19), scale_x(140), scale_y(260));
 		reset_hdc(hdc);
 		return 1;
 	}
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONUP: {
-		int octave = LOWORD(lParam) / 20 - 1;
+		int octave = LOWORD(lParam) / scale_x(20) - 1;
 		if (octave < 0 || octave > 5) break;
-		int note = HIWORD(lParam) / 20 - 1;
+		int note = HIWORD(lParam) / scale_y(20) - 1;
 		if (note < 0 || note > 11) break;
 		note += 12 * octave;
 		if (uMsg == WM_LBUTTONDOWN) note_on(note, 24);

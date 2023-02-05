@@ -37,6 +37,15 @@ auto hwndInstruments() { return tab_hwnd[1]; }
 auto hwndEditor() { return tab_hwnd[2]; }
 auto hwndPackList() { return tab_hwnd[3]; }
 
+enum {
+	MAIN_WINDOW_WIDTH = 720,
+	MAIN_WINDOW_HEIGHT = 540,
+	TAB_CONTROL_WIDTH = 600,
+	TAB_CONTROL_HEIGHT = 25,
+	CODELIST_WINDOW_WIDTH = 640,
+	CODELIST_WINDOW_HEIGHT = 480
+}
+
 __gshared structs.song cur_song;
 __gshared ubyte[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
 __gshared ptrdiff_t current_block = -1;
@@ -116,7 +125,7 @@ void tab_selected(int new_) {
 	GetClientRect(hwndMain, &rc);
 	tab_hwnd[new_] = CreateWindowW(tab_class[new_], NULL,
 		WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
-		0, 25, rc.right, rc.bottom - 25,
+		0, scale_y(25), rc.right, rc.bottom - scale_y(25),
 		hwndMain, NULL, hinstance, NULL);
 
 	SendMessageA(tab_hwnd[new_], rom.isOpen ? WM_ROM_OPENED : WM_ROM_CLOSED, 0, 0);
@@ -488,7 +497,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		break;
 	case WM_CREATE: {
 		HWND tabs = CreateWindowW("SysTabControl32", NULL,
-			WS_CHILD | WS_VISIBLE | TCS_BUTTONS, 0, 0, 600, 25,
+			WS_CHILD | WS_VISIBLE | TCS_BUTTONS, 0, 0, scale_x(TAB_CONTROL_WIDTH), scale_y(TAB_CONTROL_HEIGHT),
 			hWnd, NULL, hinstance, NULL);
 		TC_ITEMA item;
 		item.mask = TCIF_TEXT;
@@ -496,10 +505,21 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			item.pszText = cast(char*)tab_name[i];
 			TabCtrl_InsertItem(tabs, i, &item);
 		}
+		LOGFONT original_font;
+		GetObjectA(GetStockObject(SYSTEM_FONT), LOGFONT.sizeof, &original_font);
+
+		LOGFONT tabs_font;
+		GetObjectA(hfont, LOGFONT.sizeof, &tabs_font);
+		tabs_font.lfHeight = scale_y(original_font.lfHeight) - 2;
+		// strcpy(tabs_font.lfFaceName, "Tahoma");
+		// TODO: Refactor so this new font can be deleted
+		HFONT hTabsFont = CreateFontIndirect(&tabs_font);
+		SendMessageA(tabs, WM_SETFONT, cast(ulong)hTabsFont, TRUE);
 		break;
 	}
 	case WM_SIZE:
-		MoveWindow(tab_hwnd[current_tab], 0, 25, LOWORD(lParam), HIWORD(lParam) - 25, TRUE);
+		int tabs_height = scale_y(TAB_CONTROL_HEIGHT);
+		MoveWindow(tab_hwnd[current_tab], 0, tabs_height, LOWORD(lParam), HIWORD(lParam) - tabs_height, TRUE);
 		break;
 	case WM_COMMAND: {
 		WORD id = LOWORD(wParam);
@@ -577,7 +597,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case ID_HELP:
 			CreateWindowW("ebmused_codelist", "Code list",
 				WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-				CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
+				CW_USEDEFAULT, CW_USEDEFAULT, scale_x(CODELIST_WINDOW_WIDTH), scale_y(CODELIST_WINDOW_HEIGHT),
 				NULL, NULL, hinstance, NULL);
 			break;
 		case ID_ABOUT: {
@@ -659,13 +679,16 @@ version(win32) {
 		wc.lpszClassName = "ebmused_tracker";
 		RegisterClassW(&wc);
 
+		setup_dpi_scale_values();
 		InitCommonControls();
 
 	//	SetUnhandledExceptionFilter(exfilter);
 
+		hfont = GetStockObject(DEFAULT_GUI_FONT);
+
 		hwndMain = CreateWindowW("ebmused_main", "EarthBound Music Editor",
 			WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
-			CW_USEDEFAULT, CW_USEDEFAULT, 720, 540,
+			CW_USEDEFAULT, CW_USEDEFAULT, scale_x(MAIN_WINDOW_WIDTH), scale_y(MAIN_WINDOW_HEIGHT),
 			NULL, NULL, hInstance, NULL);
 		ShowWindow(hwndMain, nCmdShow);
 
@@ -673,8 +696,6 @@ version(win32) {
 		CheckMenuRadioItem(hmenu, ID_OCTAVE_1, ID_OCTAVE_1+4, ID_OCTAVE_1+2, MF_BYCOMMAND);
 
 		hcontextmenu = LoadMenuA(hInstance, MAKEINTRESOURCEA(IDM_CONTEXTMENU));
-
-		hfont = GetStockObject(DEFAULT_GUI_FONT);
 
 		HACCEL hAccel = LoadAcceleratorsA(hInstance, MAKEINTRESOURCEA(IDA_ACCEL));
 
