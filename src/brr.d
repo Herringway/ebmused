@@ -11,10 +11,9 @@ import std.experimental.logger;
 extern(C):
 
 enum {
-	BRR_BLOCK_SIZE = 9,
-
 	BRR_FLAG_END = 1,
-	BRR_FLAG_LOOP = 2
+	BRR_FLAG_LOOP = 2,
+	BRR_BLOCK_SIZE = 9,
 };
 
 __gshared sample[128] samp;
@@ -64,7 +63,8 @@ static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_b
 			s -= 16;
 		}
 
-		s <<= range - 1;
+		s <<= range;
+		s >>= 1;
 		if (range > 12) {
 			s = (s < 0) ? -(1 << 11) : 0;
 		}
