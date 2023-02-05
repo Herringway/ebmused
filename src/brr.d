@@ -19,6 +19,9 @@ enum {
 
 __gshared sample[128] samp;
 
+
+ushort sample_ptr_base = 0x6C00;
+
 // Returns the length of a BRR sample, in bytes.
 // This makes no attempt to simulate the behavior of the SPC on key on. It ignores the header of a
 // block on key on. That would complicate decoding, because you could have a loop that results in a

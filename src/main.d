@@ -23,8 +23,10 @@ import brr;
 import bgmlist;
 import loadrom;
 import inst;
-import packlist;
 import metadata;
+import packlist;
+import play;
+import song;
 import tracker;
 
 extern(C):
@@ -35,7 +37,7 @@ auto hwndInstruments() { return tab_hwnd[1]; }
 auto hwndEditor() { return tab_hwnd[2]; }
 auto hwndPackList() { return tab_hwnd[3]; }
 
-__gshared song cur_song;
+__gshared structs.song cur_song;
 __gshared ubyte[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
 __gshared ptrdiff_t current_block = -1;
 __gshared song_state pattop_state, state;
@@ -151,39 +153,235 @@ err1:
 	fclose(f);
 }
 
-/*static void import_spc() {
-	char *file = open_dialog(GetOpenFileName,
-		"SPC Savestates (*.spc)\0*.spc\0All Files\0*.*\0",
-		NULL,
+
+struct spcDetails {
+	ushort music_table_addr;
+	ushort instrument_table_addr;
+	ushort music_addr;
+	ubyte music_index;
+}
+
+bool try_parse_music_table(const(ubyte) *spc, spcDetails *out_details) nothrow {
+	if (memcmp(&spc[0], "\x1C\x5D\xF5".ptr, 3) != 0) return false;
+	ushort addr_hi = *(cast(ushort*)&spc[3]);
+
+	// Check for Konami-only branch
+	if (spc[5] == 0xF0) {
+		spc += 2; // skip two bytes (beq ..)
+	}
+
+	if (spc[5] != 0xFD) return false;
+
+	// Check for Starfox branch
+	if (memcmp(&spc[6], "\xD0\x03\xC4".ptr, 3) == 0 && spc[10] == 0x6F) {
+		spc += 5; // skip these 5 bytes
+	}
+
+	if (spc[6] != 0xF5) return false; // mov a,
+	ushort addr_lo = *(cast(ushort*)&spc[7]); //       $....+x
+
+	if (spc[9] != 0xDA || spc[10] != 0x40) return false; // mov $40,ya
+
+	// Validate retrieved address
+	if (addr_lo != addr_hi - 1) return false;
+
+	out_details.music_table_addr = addr_lo;
+	return true;
+}
+
+bool try_parse_music_address(const(ubyte)* spc, spcDetails *out_details) nothrow {
+	ushort loop_addr = *cast(ushort *)&spc[0x40];
+	ushort *terminator = cast(ushort *)&spc[loop_addr];
+	while (terminator[0]) {
+		// Make sure terminator stays in bounds and allows space for one pattern block after it.
+		// Also arbitrarily limit number of patterns between loop and terminator to 256.
+		if (cast(ubyte *)terminator < &spc[0x10000 - 16 - 2]
+			&& terminator - cast(ushort *)&spc[loop_addr] <= 0x100
+		) {
+			terminator++;
+		} else {
+			return false;
+		}
+	}
+
+	// Count all unique patterns past the terminator.
+	ushort[8]* patterns = cast(ushort[8]*)&terminator[1];
+	uint numPatterns = 0;
+	const size_t maxPatterns = (&spc[0xFFFF] - cast(ubyte *)patterns) / (ushort[8]).sizeof; // Amount of patterns that can possibly fit.
+	// Pattern is only valid if all channel addresses are ordered. (Ignore 0x0000 channel addresses)
+	for (uint i = 0;
+		i < maxPatterns // Limit count to as many as can possibly fit in memory
+			&& (patterns[i][0] < patterns[i][1] || !patterns[i][1])
+			&& (patterns[i][1] < patterns[i][2] || !patterns[i][2])
+			&& (patterns[i][2] < patterns[i][3] || !patterns[i][3])
+			&& (patterns[i][3] < patterns[i][4] || !patterns[i][4])
+			&& (patterns[i][4] < patterns[i][5] || !patterns[i][5])
+			&& (patterns[i][5] < patterns[i][6] || !patterns[i][6])
+			&& (patterns[i][6] < patterns[i][7] || !patterns[i][7])
+			;
+		i++) {
+		numPatterns = i + 1;
+	}
+
+	// sanity check. Assert smallest pattern is greater than 0xFF and number of patterns is less than as many as can fit in memory
+	if (patterns[0][0] <= 0xFF || numPatterns == 0 || numPatterns >= maxPatterns) return false;
+
+	// Find the first pattern by iterating backwards until one pattern doesn't point at a pattern address.
+	ushort *music_addr_ptr = cast(ushort*)&spc[loop_addr];
+	bool patternExists = true;
+	for (WORD* prev = &music_addr_ptr[-1]; prev && patternExists; prev--) {
+		patternExists = false;
+		// if any patterns contain prev, continue
+		for (uint i = 0; i < numPatterns; i++) {
+			if (patterns[i] == *cast(ushort[8]*)(&spc[*prev])) {
+				patternExists = true;
+				music_addr_ptr = prev;
+				break;
+			}
+		}
+	}
+
+	// sanity check
+	if (cast(ubyte*)music_addr_ptr - spc <= 0xFF) return false;
+
+	out_details.music_addr = cast(ushort)(cast(ubyte*)music_addr_ptr - spc);
+	return true;
+}
+
+bool try_parse_inst_directory(const BYTE *spc, spcDetails *out_details) nothrow {
+	if (memcmp(spc, "\xCF\xDA\x14\x60\x98".ptr, 5) == 0 && memcmp(&spc[6], "\x14\x98".ptr, 2) == 0 && spc[9] == 0x15) {
+		out_details.instrument_table_addr = spc[5] | (spc[8] << 8);
+		return true;
+	}
+
+	return false;
+}
+
+enum SPC_RESULTS {
+	HAS_MUSIC = 1 << 0,
+	HAS_MUSIC_TABLE = 1 << 1,
+	HAS_INSTRUMENTS = 1 << 2
+}
+SPC_RESULTS try_parse_spc(const(ubyte)* spc, spcDetails *out_details) nothrow {
+	bool foundMusic = false,
+		foundMusicTable = false,
+		foundInst = false;
+	// For i in 0 .. 0xFF00, and also stop if all 3 things we're looking for have been found
+	for (int i = 0; i < 0xFF00 && !(foundMusicTable && foundInst); i++) {
+		if (!foundMusicTable && spc[i] == 0x1C)
+			foundMusicTable = try_parse_music_table(&spc[i], out_details);
+		else if (!foundInst && spc[i] == 0xCF)
+			foundInst = try_parse_inst_directory(&spc[i], out_details);
+	}
+
+	foundMusic = try_parse_music_address(spc, out_details);
+
+	// If we couldn't find the music via snooping the $40 address, try checking if we found a music table.
+	if (!foundMusic && foundMusicTable) {
+		// Try to get the bgm index from one of these locations, the first that isn't 0...
+		ubyte bgm_index = spc[0x00] ? spc[0x00]
+			: spc[0x04] ? spc[0x04]
+			: spc[0x08] ? spc[0x08]
+			: spc[0xF3] ? spc[0xF3]
+			: spc[0xF4];
+		if (bgm_index) {
+			out_details.music_index = bgm_index;
+			out_details.music_addr = (cast(ushort *)&spc[out_details.music_table_addr])[bgm_index];
+			foundMusic = true;
+		} else {
+			// If we couldn't find the bgm index, try to guess it from the table using the pointer at 0x40
+			ushort music_addr = *(cast(ushort*)(&spc[0x40]));
+			ushort closestDiff = 0xFFFF;
+			for (uint i = 0; i < 0xFF; i++) {
+				ushort addr = (cast(ushort *)(&spc[out_details.music_table_addr]))[i];
+				if (music_addr < addr && addr - music_addr < closestDiff) {
+					closestDiff = cast(ushort)(addr - music_addr);
+					bgm_index = cast(ubyte)i;
+				}
+			}
+
+			if (music_addr > 0xFF) {
+				out_details.music_addr = music_addr;
+				out_details.music_index = 0;
+				foundMusic = true;
+			}
+		}
+	}
+
+	SPC_RESULTS results = cast(SPC_RESULTS)0;
+	if (foundMusicTable) results |= SPC_RESULTS.HAS_MUSIC_TABLE;
+	if (foundMusic) results |= SPC_RESULTS.HAS_MUSIC;
+	if (foundInst) results |= SPC_RESULTS.HAS_INSTRUMENTS;
+	return results;
+}
+static void import_spc() nothrow {
+	char *file = open_dialog(&GetOpenFileNameA,
+		cast(char*)"SPC Savestates (*.spc)\0*.spc\0All Files\0*.*\0".ptr,
+		null,
 		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
 	if (!file) return;
 
 	FILE *f = fopen(file, "rb");
 	if (!f) {
-		MessageBox2(strerror(errno), "Import", MB_ICONEXCLAMATION);
+		MessageBox2(strerror(errno).fromStringz, "Import", MB_ICONEXCLAMATION);
 		return;
 	}
 
-	fseek(f, 0x100, SEEK_SET);
-	fread(spc, 65536, 1, f);
-	fseek(f, 0x1015D, SEEK_SET);
-	int samp_ptrs = fgetc(f) << 8;
-	decode_samples((WORD *)&spc[samp_ptrs]);
-	for (int i = 0; i < 0xfff0; i++) {
-		if (memcmp(&spc[i], "\x8D\x06\xCF\xDA\x14\x60\x98", 7) == 0) {
-			inst_base = spc[i+7] | spc[i+10] << 8;
-			printf("Instruments found: %X\n", inst_base);
-			break;
+	// Backup the currently loaded SPC in case we need to restore it upon an error.
+	// This can be updated once methods like decode_samples don't rely on the global "spc" variable.
+	BYTE[0x10000] backup_spc;
+	memcpy(&backup_spc[0], &spc[0], 0x10000);
+	WORD original_sample_ptr_base = sample_ptr_base;
+
+	BYTE[0x80] dsp;
+
+	if (fseek(f, 0x100, SEEK_SET) == 0
+		&& fread(&spc[0], 0x10000, 1, f) == 1
+		&& fread(&dsp[0], 0x80, 1, f) == 1
+	) {
+		sample_ptr_base = dsp[0x5D] << 8;
+		free_samples();
+		decode_samples(&spc[sample_ptr_base]);
+
+		spcDetails details;
+		SPC_RESULTS results = try_parse_spc(&spc[0], &details);
+		if (results) {
+			if (results & SPC_RESULTS.HAS_INSTRUMENTS) {
+				printf("Instrument table found: %#X\n", details.instrument_table_addr);
+				inst_base = details.instrument_table_addr;
+			}
+			if (results & SPC_RESULTS.HAS_MUSIC) {
+				printf("Music table found: %#X\n", details.music_table_addr);
+				printf("Music index found: %#X\n", details.music_index);
+				printf("Music found: %#X\n", details.music_addr);
+
+				free_song(&cur_song);
+				decompile_song(&cur_song, details.music_addr, 0xffff);
+			}
+
+			initialize_state();
+			SendMessage(tab_hwnd[current_tab], WM_SONG_IMPORTED, 0, 0);
+		} else {
+			// Restore SPC state and samples
+			memcpy(&spc[0], &backup_spc[0], 0x10000);
+			sample_ptr_base = original_sample_ptr_base;
+			free_samples();
+			decode_samples(&spc[sample_ptr_base]);
+
+			MessageBox2("Could not parse SPC.", "SPC Import", MB_ICONEXCLAMATION);
 		}
+	} else {
+		// Restore SPC state
+		memcpy(&spc[0], &backup_spc[0], 0x10000);
+
+		if (feof(f))
+			MessageBox2("End-of-file reached while reading the SPC file", "Import", MB_ICONEXCLAMATION);
+		else
+			MessageBox2("Error reading the SPC file", "Import", MB_ICONEXCLAMATION);
 	}
-	int song_addr = spc[0x40] | spc[0x41] << 8;
-	free_song(&cur_song);
-	decompile_song(&cur_song, song_addr - 2, 0xffff);
-	initialize_state();
-	SendMessageA(tab_hwnd[current_tab], WM_SONG_IMPORTED, 0, 0);
 
 	fclose(f);
-}*/
+}
 
 private void export_() nothrow {
 	block *b = save_cur_song_to_pack();
@@ -328,7 +526,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			SetWindowTextA(hWnd, "EarthBound Music Editor");
 			break;
 		case ID_IMPORT: import_(); break;
-//		case ID_IMPORT_SPC: import_spc(); break;
+		case ID_IMPORT_SPC: import_spc(); break;
 		case ID_EXPORT: export_(); break;
 		case ID_EXPORT_SPC: export_spc(); break;
 		case ID_EXIT: DestroyWindow(hWnd); break;
