@@ -2,8 +2,6 @@ import ebmusv2;
 import structs;
 import main;
 
-extern(C):
-
 // number of bytes following a Ex/Fx code
 immutable ubyte[32] code_length = [
 	1, 1, 2, 3, 0, 1, 2, 1, 2, 1, 1, 3, 0, 1, 2, 3,

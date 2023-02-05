@@ -23,8 +23,6 @@ import play;
 import ranges;
 import song;
 
-extern(C):
-
 __gshared File rom;
 __gshared int rom_size;
 __gshared int rom_offset;

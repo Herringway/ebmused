@@ -16,8 +16,6 @@ import play;
 import song;
 import ranges;
 
-extern(C):
-
 immutable uint[169] pack_orig_crc = [
 	0x35994B97, 0xDB04D065, 0xC13D8165, 0xEEFF028E, 0x5330392D, 0x705AEBBC,
 	0x4ED3BBAB, 0xFF11F6A1, 0x9E69B6C1, 0xBF0F580B, 0x0460DAD8, 0xD3EEC6FB,

@@ -4,8 +4,6 @@ import ebmusv2;
 import structs;
 import misc;
 
-extern(C):
-
 enum AREA_END = -4;
 enum AREA_NOT_IN_FILE = -3;
 enum AREA_NON_SPC = -2;

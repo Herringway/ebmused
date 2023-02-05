@@ -11,8 +11,6 @@ import parser;
 import play;
 import song;
 
-extern(C):
-
 void order_insert(int pos, int pat) nothrow {
 	int *p = cast(int*)array_insert(cast(void**)&cur_song.order, &cur_song.order_length,
 		int.sizeof, pos);

@@ -18,8 +18,6 @@ import win32.sound;
 import midi;
 import brr;
 
-extern(C):
-
 enum IDC_SAMPLIST_CAPTION = 1;
 enum IDC_SAMPLIST = 2;
 enum IDC_INSTLIST_CAPTION = 3;

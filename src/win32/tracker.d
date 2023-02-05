@@ -24,8 +24,6 @@ import packs;
 import midi;
 import win32.inst;
 
-extern(C):
-
 __gshared HWND hwndTracker;
 __gshared private HWND hwndOrder;
 __gshared private HWND hwndState;

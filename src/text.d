@@ -9,8 +9,6 @@ import win32.misc;
 import parser;
 import song;
 
-extern(C):
-
 private int unhex(int chr) nothrow {
 	if (chr >= '0' && chr <= '9')
 		return chr - '0';

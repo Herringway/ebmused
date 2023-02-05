@@ -4,8 +4,6 @@ import std.string;
 import ebmusv2;
 import win32.misc;
 
-extern(C):
-
 __gshared HMIDIIN hMidiIn = NULL;
 
 private void outputMidiError(uint err) nothrow {

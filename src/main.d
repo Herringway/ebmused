@@ -28,8 +28,6 @@ import win32.handles;
 import win32.misc;
 import win32.ui;
 
-extern(C):
-
 
 enum {
 	MAIN_WINDOW_WIDTH = 720,

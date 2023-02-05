@@ -11,8 +11,6 @@ import loadrom;
 import ranges;
 import win32.misc;
 
-extern(C):
-
 __gshared string[] bgm_title;
 __gshared bool metadata_changed;
 __gshared private char[MAX_PATH+8] md_filename;

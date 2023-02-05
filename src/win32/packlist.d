@@ -16,8 +16,6 @@ import ranges;
 import metadata;
 import packs;
 
-extern(C):
-
 enum IDC_RLIST_CAPTION = 10;
 enum IDC_ROM_LIST = 11;
 enum IDC_MLIST_CAPTION = 12;

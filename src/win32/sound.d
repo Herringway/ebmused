@@ -14,8 +14,6 @@ import win32.handles;
 import play;
 import win32.tracker;
 
-extern(C):
-
 __gshared int mixrate = 44100;
 __gshared int bufsize = 2205;
 __gshared int chmask = 255;

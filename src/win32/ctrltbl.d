@@ -6,8 +6,6 @@ import win32.fonts;
 import win32.handles;
 import win32.misc;
 
-extern(C):
-
 struct control_desc {
 	immutable(char)* class_; short x, y, xsize, ysize; immutable(char)* title; DWORD id; DWORD style;
 }

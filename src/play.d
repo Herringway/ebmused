@@ -9,8 +9,6 @@ import parser;
 import brr;
 import win32.tracker;
 
-extern(C):
-
 __gshared ubyte[65536] spc;
 __gshared int inst_base = 0x6E00;
 

@@ -9,7 +9,6 @@ import main;
 import parser;
 import play;
 
-extern(C):
 __gshared char[60] errbuf;
 __gshared const(char)* decomp_error;
 

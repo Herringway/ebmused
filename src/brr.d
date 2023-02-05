@@ -8,8 +8,6 @@ import play;
 
 import std.experimental.logger;
 
-extern(C):
-
 enum {
 	BRR_FLAG_END = 1,
 	BRR_FLAG_LOOP = 2,

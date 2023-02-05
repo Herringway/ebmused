@@ -23,8 +23,6 @@ import metadata;
 import brr;
 import play;
 
-extern(C):
-
 enum IDC_ROM_FILE = 17;
 enum IDC_ORIG_ROM_FILE = 18;
 enum IDC_ROM_SIZE = 19;
