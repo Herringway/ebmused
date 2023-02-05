@@ -5,7 +5,7 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import std.format : sformat;
 import std.exception : assumeWontThrow;
-import std.string : fromStringz;
+import std.string : fromStringz, toStringz;
 import ebmusv2;
 import structs;
 import ctrltbl;
@@ -92,9 +92,9 @@ private void set_bgm_info(BYTE *packs_used, int spc_addr) nothrow {
 }
 
 private void show_bgm_info() nothrow {
-	sprintf(&bgm_num_text[4], "%d (0x%02X):", selected_bgm+1, selected_bgm+1);
-	SetDlgItemTextA(hwndBGMList, IDC_BGM_NUMBER, &bgm_num_text[0]);
-	SetDlgItemTextA(hwndBGMList, IDC_TITLE, bgm_title[selected_bgm]);
+	auto str = assumeWontThrow(sformat!"%d (0x%02X):"(bgm_num_text[4 .. $], selected_bgm+1, selected_bgm+1));
+	setDlgItemText(hwndBGMList, IDC_BGM_NUMBER, str);
+	setDlgItemText(hwndBGMList, IDC_TITLE, bgm_title[selected_bgm]);
 	set_bgm_info(&pack_used[selected_bgm][0], song_address[selected_bgm]);
 }
 
@@ -171,7 +171,7 @@ private void song_search() nothrow {
 		do {
 			char[MAX_TITLE_LEN+1] title = 0;
 			if (++num == NUM_SONGS) num = 0;
-			if (strstr(strlwr(strcpy(&title[0], bgm_title[num])), &str[0]))
+			if (strstr(strlwr(strcpy(&title[0], bgm_title[num].toStringz)), &str[0]))
 				break;
 		} while (num != selected_bgm);
 	}
@@ -197,7 +197,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		HWND list = GetDlgItem(hWnd, IDC_LIST);
 		SendMessageA(list, WM_SETREDRAW, FALSE, 0);
 		for (int i = 0; i < NUM_SONGS; i++) {
-			sprintf(&buf[0], "%02X: %s", i+1, bgm_title[i]);
+			assumeWontThrow(sformat!"%02X: %s\0"(buf[], i+1, bgm_title[i]));
 			SendMessageA(list, LB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
 		}
 		SendMessageA(list, WM_SETREDRAW, TRUE, 0);
@@ -234,15 +234,13 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 				song_selected(SendMessageA(cast(HWND)lParam, LB_GETCURSEL, 0, 0));
 			break;
 		case IDC_TITLE_CHANGE: {
-			if (bgm_title[selected_bgm] != bgm_orig_title[selected_bgm])
-				free(bgm_title[selected_bgm]);
 			GetDlgItemTextA(hWnd, IDC_TITLE, &buf[4], MAX_TITLE_LEN+1);
-			bgm_title[selected_bgm] = strdup(&buf[4]);
+			bgm_title[selected_bgm] = (&buf[4]).fromStringz.idup;
 			sprintf(&buf[0], "%02X:", selected_bgm + 1);
 			buf[3] = ' ';
-			SendDlgItemMessage(hWnd, IDC_LIST, LB_DELETESTRING, selected_bgm, 0);
-			SendDlgItemMessage(hWnd, IDC_LIST, LB_INSERTSTRING, selected_bgm, cast(LPARAM)&buf[0]);
-			SendDlgItemMessage(hWnd, IDC_LIST, LB_SETCURSEL, selected_bgm, 0);
+			SendDlgItemMessageA(hWnd, IDC_LIST, LB_DELETESTRING, selected_bgm, 0);
+			SendDlgItemMessageA(hWnd, IDC_LIST, LB_INSERTSTRING, selected_bgm, cast(LPARAM)&buf[0]);
+			SendDlgItemMessageA(hWnd, IDC_LIST, LB_SETCURSEL, selected_bgm, 0);
 
 			metadata_changed = TRUE;
 			break;

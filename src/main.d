@@ -30,10 +30,10 @@ import tracker;
 extern(C):
 
 enum NUM_TABS = 4;
-enum hwndBGMList = cast(void*)0;
-enum hwndInstruments = cast(void*)1;
-enum hwndEditor = cast(void*)2;
-enum hwndPackList = cast(void*)3;
+auto hwndBGMList() { return tab_hwnd[0]; }
+auto hwndInstruments() { return tab_hwnd[1]; }
+auto hwndEditor() { return tab_hwnd[2]; }
+auto hwndPackList() { return tab_hwnd[3]; }
 
 __gshared song cur_song;
 __gshared BYTE[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];

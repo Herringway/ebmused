@@ -12,14 +12,14 @@ import ranges;
 
 extern(C):
 
-__gshared char*[NUM_SONGS] bgm_title;
+__gshared string[] bgm_title;
 __gshared BOOL metadata_changed;
 __gshared private char[MAX_PATH+8] md_filename;
 __gshared File orig_rom;
 __gshared char *orig_rom_filename;
 __gshared int orig_rom_offset;
 
-immutable char*[NUM_SONGS] bgm_orig_title = [
+immutable bgm_orig_title = [
 	"Gas Station",
 	"Your Name, Please",
 	"Choose a File",
@@ -236,8 +236,10 @@ BOOL open_orig_rom(char *filename) {
 }
 
 void load_metadata() nothrow {
-	for (int i = 0; i < NUM_SONGS; i++)
-		bgm_title[i] = cast(char *)bgm_orig_title[i];
+	bgm_title.length = bgm_orig_title.length;
+	for (int i = 0; i < NUM_SONGS; i++) {
+		bgm_title[i] = bgm_orig_title[i];
+	}
 	metadata_changed = FALSE;
 
 	// We want an absolute path here, so we don't get screwed by
@@ -273,7 +275,7 @@ static assert(MAX_TITLE_LEN < MAX_PATH);
 			uint bgm;
 			fscanf(mf, "%X %"~MAX_TITLE_LEN_STR~"[^\n]", &bgm, &buf[0]);
 			if (--bgm < NUM_SONGS)
-				bgm_title[bgm] = strdup(&buf[0]);
+				bgm_title[bgm] = buf.fromStringz.idup;
 			while ((c = fgetc(mf)) >= 0 && c != '\n') {}
 		} else {
 			printf("unrecognized metadata line %c\n", c);
@@ -312,7 +314,7 @@ void save_metadata() {
 	}
 
 	for (int i = 0; i < NUM_SONGS; i++) {
-		if (strcmp(bgm_title[i], bgm_orig_title[i]) != 0) {
+		if (bgm_title[i] != bgm_orig_title[i]) {
 			mf.writefln!"T %02X %s"(i+1, bgm_title[i].fromStringz);
 		}
 	}
@@ -324,7 +326,4 @@ void free_metadata() nothrow {
 	if (orig_rom.isOpen) { try { orig_rom.close(); } catch (Exception) {} }
 	free(orig_rom_filename);
 	orig_rom_filename = NULL;
-	for (int i = 0; i < NUM_SONGS; i++)
-		if (bgm_title[i] != bgm_orig_title[i])
-			free(bgm_title[i]);
 }

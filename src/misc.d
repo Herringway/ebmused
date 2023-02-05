@@ -3,6 +3,8 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
+import std.exception;
+import std.logger;
 import std.string;
 import std.stdio;
 import ebmusv2;
@@ -32,6 +34,14 @@ int fgetw(FILE *f) nothrow {
 	lo = fgetc(f); if (lo < 0) return -1;
 	hi = fgetc(f); if (hi < 0) return -1;
 	return lo | hi<<8;
+}
+
+void setDlgItemText(HWND dlg, uint u, scope const char[] str) nothrow {
+	if (!SetDlgItemTextA(dlg, u, str.toStringz)) {
+		wchar[256] buf;
+		FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, null, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &buf[0], buf.length, null);
+		assumeWontThrow(infof("Error setting text: %s", strip(buf.fromStringz)));
+	}
 }
 
 // Like Set/GetDlgItemInt but for hex.
