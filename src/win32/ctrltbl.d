@@ -33,9 +33,6 @@ void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
 	int height = t.divy;
 
 	foreach (num, c; t.controls) {
-		import std.logger;
-		import std.exception;
-		assumeWontThrow(infof("Creating control %s", c));
 		int x = scale_x(c.x);
 		int y = scale_y(c.y);
 		int xsize = scale_x(c.xsize);
