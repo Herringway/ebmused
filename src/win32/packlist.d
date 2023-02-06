@@ -116,7 +116,7 @@ static void show_blocks(HWND packlist, pack *p, LV_ITEMA *lvi) {
 			strcpy(&buf[0], "Unused song");
 			for (int song = 0; song < NUM_SONGS; song++) {
 				if (pack_used[song][2] == packno && song_address[song] == b.spc_address) {
-					sformat!"%02X: %s"(buf[], song+1, bgm_title[song]);
+					sformat!"%02X: %s\0"(buf[], song+1, bgm_title[song]);
 					break;
 				}
 			}
