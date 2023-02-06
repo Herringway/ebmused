@@ -69,11 +69,10 @@ private void import_() nothrow {
 		return;
 	}
 
-	char *file = open_dialog(&GetOpenFileNameA,
-		cast(char*)"EarthBound Music files (*.ebm)\0*.ebm\0All Files\0*.*\0".ptr, NULL, OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
-	if (!file) return;
+	string file = openFilePrompt("EarthBound Music files (*.ebm)\0*.ebm\0All Files\0*.*\0");
+	if (file == "") return;
 
-	FILE *f = fopen(file, "rb");
+	FILE *f = fopen(file.toStringz, "rb");
 	auto size = filelength(f);
 	if (!f) {
 		MessageBox2(strerror(errno).fromStringz, "Import", MB_ICONEXCLAMATION);
@@ -119,10 +118,9 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		WORD id = LOWORD(wParam);
 		switch (id) {
 		case ID_OPEN: {
-			char *file = open_dialog(&GetOpenFileNameA,
-				cast(char*)"SNES ROM files (*.smc, *.sfc)\0*.smc;*.sfc\0All Files\0*.*\0".ptr, NULL, OFN_FILEMUSTEXIST);
+			string file = openFilePrompt("SNES ROM files (*.smc, *.sfc)\0*.smc;*.sfc\0All Files\0*.*\0");
 			try {
-				if (file && open_rom(file, ofn.Flags & OFN_READONLY)) {
+				if ((file != "") && open_rom(file, ofn.Flags & OFN_READONLY)) {
 					SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
 					SendMessageA(tab_hwnd[current_tab], WM_ROM_OPENED, 0, 0);
 				}
@@ -137,7 +135,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		case ID_CLOSE:
 			if (!handleErrorsUI(close_rom(), true)) break;
 			SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
-			SetWindowTextA(hWnd, "EarthBound Music Editor");
+			SetWindowTextW(hWnd, "EarthBound Music Editor");
 			break;
 		case ID_IMPORT: import_(); break;
 		case ID_IMPORT_SPC: handleErrorsUI(import_spc()); break;

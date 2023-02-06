@@ -8,6 +8,7 @@ import core.sys.windows.windows;
 import std.format : sformat;
 import std.exception : assumeWontThrow;
 import std.string : fromStringz, toStringz;
+import std.utf : toUTF16z;
 import ebmusv2;
 import structs;
 import win32.ctrltbl;
@@ -117,7 +118,6 @@ private void show_cur_info() nothrow {
 }
 
 void load_instruments() {
-	free_samples();
 	memset(&spc[0], 0, 0x10000);
 	for (int i = 0; i < 2; i++) {
 		int p = packs_loaded[i];
@@ -187,9 +187,8 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		move_controls(hWnd, &bgm_list_template, lParam);
 		break;
 	case WM_ROM_OPENED:
-		SetDlgItemTextA(hWnd, IDC_ROM_FILE, rom_filename);
-		SetDlgItemTextA(hWnd, IDC_ORIG_ROM_FILE, orig_rom_filename
-			? orig_rom_filename : "None specified (click to set)");
+		assumeWontThrow(SetDlgItemTextW(hWnd, IDC_ROM_FILE, rom_filename.toUTF16z));
+		assumeWontThrow(SetDlgItemTextW(hWnd, IDC_ORIG_ROM_FILE, orig_rom_filename != "" ? orig_rom_filename.toUTF16z : "None specified (click to set)"));
 		sprintf(&buf[0], "%.2f MB", rom_size / 1048576.0);
 		SetDlgItemTextA(hWnd, IDC_ROM_SIZE, &buf[0]);
 		HWND list = GetDlgItem(hWnd, IDC_LIST);
@@ -198,8 +197,8 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			assumeWontThrow(sformat!"%02X: %s\0"(buf[], i+1, bgm_title[i]));
 			SendMessageA(list, LB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
 		}
-		SendMessageA(list, WM_SETREDRAW, TRUE, 0);
-		SendMessageA(list, LB_SETCURSEL, selected_bgm, 0);
+		SendMessageW(list, WM_SETREDRAW, TRUE, 0);
+		SendMessageW(list, LB_SETCURSEL, selected_bgm, 0);
 		SetFocus(list);
 		show_bgm_info();
 		for (int i = 20; i <= 41; i++)
@@ -222,7 +221,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		case IDC_ORIG_ROM_FILE:
 			if (!rom.isOpen) break;
 			if (get_original_rom())
-				SetWindowTextA(cast(HWND)lParam, orig_rom_filename);
+				assumeWontThrow(SetWindowTextW(cast(HWND)lParam, orig_rom_filename.toUTF16z));
 			break;
 		case IDC_SEARCH:
 			handleErrorsUI(song_search());
@@ -237,9 +236,9 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 			bgm_title[selected_bgm] = (&buf[4]).fromStringz.idup;
 			assumeWontThrow(sformat!"%02X:"(buf[], selected_bgm + 1));
 			buf[3] = ' ';
-			SendDlgItemMessageA(hWnd, IDC_LIST, LB_DELETESTRING, selected_bgm, 0);
-			SendDlgItemMessageA(hWnd, IDC_LIST, LB_INSERTSTRING, selected_bgm, cast(LPARAM)&buf[0]);
-			SendDlgItemMessageA(hWnd, IDC_LIST, LB_SETCURSEL, selected_bgm, 0);
+			SendDlgItemMessageW(hWnd, IDC_LIST, LB_DELETESTRING, selected_bgm, 0);
+			assumeWontThrow(SendDlgItemMessageW(hWnd, IDC_LIST, LB_INSERTSTRING, selected_bgm, cast(LPARAM)buf.toUTF16z));
+			SendDlgItemMessageW(hWnd, IDC_LIST, LB_SETCURSEL, selected_bgm, 0);
 
 			metadata_changed = TRUE;
 			break;

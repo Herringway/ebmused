@@ -2,11 +2,12 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.errno;
-import core.sys.windows.windows : IDCANCEL, IDYES, MB_ICONERROR, MB_ICONEXCLAMATION, MB_YESNOCANCEL, MF_ENABLED, MF_GRAYED, SetWindowTextA;
+import core.sys.windows.windows : IDCANCEL, IDYES, MB_ICONERROR, MB_ICONEXCLAMATION, MB_YESNOCANCEL, MF_ENABLED, MF_GRAYED, SetWindowTextW;
 import std.exception;
 import std.format;
-import std.string;
 import std.stdio;
+import std.string;
+import std.utf;
 import ebmusv2;
 import structs;
 import misc;
@@ -25,16 +26,20 @@ import song;
 __gshared File rom;
 __gshared int rom_size;
 __gshared int rom_offset;
-__gshared char *rom_filename;
+__gshared string rom_filename;
 
 __gshared ubyte[3][NUM_SONGS] pack_used;
 __gshared ushort[NUM_SONGS] song_address;
 __gshared pack[NUM_PACKS] rom_packs;
 __gshared pack[NUM_PACKS] inmem_packs;
 
-static char *skip_dirname(char *filename) nothrow {
-	for (char *p = filename; *p; p++)
-		if (*p == '/' || *p == '\\') filename = p + 1;
+private string skip_dirname(string filename) nothrow {
+	string original = filename;
+	foreach (idx, char c; filename) {
+		if (c == '/' || c == '\\') {
+			filename = filename[idx + 1 .. $];
+		}
+	}
 	return filename;
 }
 
@@ -87,12 +92,11 @@ bool close_rom() {
 	try {
 		save_metadata();
 	} catch (Exception e) {
-		throw new EbmusedWarningException(e.msg, filename.fromStringz.idup);
+		throw new EbmusedWarningException(e.msg, filename.fromStringz.toUTF8);
 	}
 	try {
 		rom.close();
 	} catch (Exception) {}
-	free(rom_filename);
 	rom_filename = null;
 	enable_menu_items(&rom_menu_cmds[0], MF_GRAYED);
 	free(areas);
@@ -108,10 +112,10 @@ bool close_rom() {
 	return true;
 }
 
-bool open_rom(char *filename, bool readonly) {
+bool open_rom(string filename, bool readonly) {
 	File f;
 	try {
-		f = File(filename.fromStringz, readonly ? "rb" : "r+b");
+		f = File(filename, readonly ? "rb" : "r+b");
 	} catch (Exception e) {
 		MessageBox2(e.msg, "Can't open file", MB_ICONEXCLAMATION);
 		return false;
@@ -120,7 +124,6 @@ bool open_rom(char *filename, bool readonly) {
 	if (!close_rom())
 		return false;
 
-	free_samples();
 	free_song(&cur_song);
 	song_playing = false;
 
@@ -132,17 +135,15 @@ bool open_rom(char *filename, bool readonly) {
 		return false;
 	}
 	rom = f;
-	rom_filename = strdup(filename);
+	rom_filename = filename;
 	enable_menu_items(&rom_menu_cmds[0], MF_ENABLED);
 
 	init_areas();
 	change_range(0xBFFE00 + rom_offset, 0xBFFC00 + rom_offset + rom_size, AREA_NOT_IN_FILE, AREA_NON_SPC);
 
-	char *bfile = skip_dirname(filename);
-	char *title = cast(char*)malloc("EarthBound Music Editor".length + 3 + strlen(bfile));
-	sprintf(title, "%s - %s", bfile, "EarthBound Music Editor".ptr);
-	SetWindowTextA(hwndMain, title);
-	free(title);
+	string bfile = skip_dirname(filename);
+	const wchar[] title = format!"%s - %s\0"w(bfile, "EarthBound Music Editor");
+	SetWindowTextW(hwndMain, &title[0]);
 
 	f.seek(BGM_PACK_TABLE + rom_offset, SEEK_SET);
 	f.rawRead(pack_used[]);

@@ -15,7 +15,7 @@ __gshared string[] bgm_title;
 __gshared bool metadata_changed;
 __gshared private char[MAX_PATH+8] md_filename;
 __gshared File orig_rom;
-__gshared char *orig_rom_filename;
+__gshared string orig_rom_filename;
 __gshared int orig_rom_offset;
 
 immutable bgm_orig_title = [
@@ -212,8 +212,8 @@ immutable bgm_orig_title = [
 	"Giygas - Weakening (Quiet)",
 ];
 
-void open_orig_rom(char *filename) {
-	File f = File(filename.fromStringz, "rb");
+void open_orig_rom(string filename) {
+	File f = File(filename, "rb");
 	long size = f.size;
 	if (size != rom_size) {
 		throw new EbmusedWarningException("File is not same size as current ROM", filename.fromStringz.idup);
@@ -221,8 +221,7 @@ void open_orig_rom(char *filename) {
 	if (orig_rom.isOpen) orig_rom.close();
 	orig_rom = f;
 	orig_rom_offset = size & 0x200;
-	free(orig_rom_filename);
-	orig_rom_filename = strdup(filename);
+	orig_rom_filename = filename;
 }
 
 void load_metadata() nothrow {
@@ -235,7 +234,7 @@ void load_metadata() nothrow {
 	// We want an absolute path here, so we don't get screwed by
 	// GetOpenFileName's current-directory shenanigans when we update.
 	char *lastpart;
-	GetFullPathNameA(rom_filename, MAX_PATH, &md_filename[0], &lastpart);
+	GetFullPathNameA(rom_filename.toStringz, MAX_PATH, &md_filename[0], &lastpart);
 	char *ext = strrchr(lastpart, '.');
 	if (!ext) ext = lastpart + strlen(lastpart);
 	strcpy(ext, ".ebmused");
@@ -252,7 +251,7 @@ static assert(MAX_TITLE_LEN < MAX_PATH);
 			fgets(&buf[0], MAX_PATH, mf);
 			{ char *p = strchr(&buf[0], '\n'); if (p) *p = '\0'; }
 			try {
-				open_orig_rom(&buf[0]);
+				open_orig_rom(buf.fromStringz.idup);
 			} catch (Exception e) {
 				MessageBox2(e.msg, "Unable to load rom", MB_ICONERROR);
 			}
@@ -288,7 +287,7 @@ void save_metadata() {
 	}
 
 	if (orig_rom_filename) {
-		mf.writefln!"O %s"(orig_rom_filename.fromStringz);
+		mf.writefln!"O %s"(orig_rom_filename);
 	}
 
 	// SPC ranges containing at least one free area
@@ -314,6 +313,4 @@ void save_metadata() {
 
 void free_metadata() nothrow {
 	if (orig_rom.isOpen) { try { orig_rom.close(); } catch (Exception) {} }
-	free(orig_rom_filename);
-	orig_rom_filename = null;
 }

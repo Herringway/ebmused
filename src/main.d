@@ -13,6 +13,7 @@ import std.format;
 import std.experimental.logger;
 import std.stdio;
 import std.string;
+import std.utf;
 import ebmusv2;
 import misc;
 import packs;
@@ -210,13 +211,10 @@ SPC_RESULTS try_parse_spc(const(ubyte)* spc, spcDetails *out_details) {
 	return results;
 }
 static void import_spc() {
-	char *file = open_dialog(&GetOpenFileNameA,
-		cast(char*)"SPC Savestates (*.spc)\0*.spc\0All Files\0*.*\0".ptr,
-		null,
-		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
+	string file = openFilePrompt("SPC Savestates (*.spc)\0*.spc\0All Files\0*.*\0");
 	if (!file) return;
 
-	FILE *f = fopen(file, "rb");
+	FILE *f = fopen(file.toStringz, "rb");
 	if (!f) {
 		MessageBox2(strerror(errno).fromStringz, "Import", MB_ICONEXCLAMATION);
 		return;
@@ -234,7 +232,6 @@ static void import_spc() {
 		&& fread(&dsp[0], 0x80, 1, f) == 1
 	) {
 		sample_ptr_base = dsp[0x5D] << 8;
-		free_samples();
 		decode_samples(&spc[sample_ptr_base]);
 
 		spcDetails details;
@@ -259,7 +256,6 @@ static void import_spc() {
 			// Restore SPC state and samples
 			spc = backup_spc;
 			sample_ptr_base = original_sample_ptr_base;
-			free_samples();
 			decode_samples(&spc[sample_ptr_base]);
 
 			MessageBox2("Could not parse SPC.", "SPC Import", MB_ICONEXCLAMATION);
@@ -300,14 +296,11 @@ private const(ubyte)[] loadAllSubpacks(scope ubyte[] buffer, const(ubyte)[] pack
 	return pack[2 .. $];
 }
 void import_nspc() {
-	char *file = open_dialog(&GetOpenFileNameA,
-		cast(char*)"NSPC File (*.nspc)\0*.nspc\0All Files\0*.*\0".ptr,
-		null,
-		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
+	string file = openFilePrompt("NSPC File (*.nspc)\0*.nspc\0All Files\0*.*\0");
 	if (!file) return;
 	import nspcplay;
 	import std.file : read;
-	auto nspcFile = cast(ubyte[])read(file.fromStringz);
+	auto nspcFile = cast(ubyte[])read(file);
 	ubyte[0x10000] backup_spc = spc;
 	WORD original_sample_ptr_base = sample_ptr_base;
 
@@ -316,7 +309,6 @@ void import_nspc() {
 
 	//samples
 	sample_ptr_base = header.sampleBase;
-	free_samples();
 	decode_samples(&spc[sample_ptr_base]);
 
 	//instruments
@@ -341,10 +333,10 @@ void export_() nothrow {
 		return;
 	}
 
-	char *file = open_dialog(&GetSaveFileNameA, cast(char*)"EarthBound Music files (*.ebm)\0*.ebm\0".ptr, cast(char*)"ebm".ptr, OFN_OVERWRITEPROMPT);
+	string file = saveFilePrompt("EarthBound Music files (*.ebm)\0*.ebm\0", "ebm");
 	if (!file) return;
 
-	FILE *f = fopen(file, "wb");
+	FILE *f = fopen(file.toStringz, "wb");
 	if (!f) {
 		MessageBox2(strerror(errno).fromStringz, "Export", MB_ICONEXCLAMATION);
 		return;
@@ -360,9 +352,9 @@ static void export_spc() nothrow {
 	if (cur_song.order_length < 1) {
 		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
 	} else {
-		char *file = open_dialog(&GetSaveFileNameA, cast(char*)"SPC files (*.spc)\0*.spc\0".ptr, cast(char*)"spc".ptr, OFN_OVERWRITEPROMPT);
+		string file = saveFilePrompt("SPC files (*.spc)\0*.spc\0", "spc");
 		if (file) {
-			FILE *f = fopen(file, "wb");
+			FILE *f = fopen(file.toStringz, "wb");
 			if (!f) {
 				MessageBox2(strerror(errno).fromStringz, "Export SPC", MB_ICONEXCLAMATION);
 			} else {
@@ -412,7 +404,7 @@ static void export_nspc() {
 		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
 		return;
 	}
-	char[] filename = open_dialog(&GetSaveFileNameA, cast(char*)"NSPC files (*.nspc)\0*.nspc\0".ptr, cast(char*)"nspc".ptr, OFN_OVERWRITEPROMPT).fromStringz;
+	string filename = saveFilePrompt("NSPC files (*.nspc)\0*.nspc\0", "nspc");
 	if (!filename) {
 		return;
 	}
@@ -457,7 +449,7 @@ BOOL save_all_packs() nothrow {
 	try {
 		save_metadata();
 	} catch(Exception e) {
-		MessageBox2(e.msg, filename, MB_ICONEXCLAMATION);
+		MessageBox2(e.msg, filename.fromStringz.toUTF8, MB_ICONEXCLAMATION);
 	}
 	return success;
 }
