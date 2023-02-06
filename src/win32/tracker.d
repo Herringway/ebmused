@@ -285,21 +285,21 @@ extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wP
 		return 0;
 	} else if (uMsg == WM_CHAR && wParam == '\r') {
 		int len = GetWindowTextLength(hWnd) + 1;
-		char *p = cast(char*)malloc(len);
+		char[] p = (cast(char*)malloc(len))[0 .. len];
 		scope(exit) {
-			free(p);
+			free(&p[0]);
 		}
 		Parser c = cursor;
-		GetWindowTextA(hWnd, p, len);
+		GetWindowTextA(hWnd, &p[0], len);
 		try {
-			text_to_track(p, cursor_track, !!c.sub_count);
+			text_to_track(p, *cursor_track, !!c.sub_count);
 			// Find out where the editbox's caret was, and
 			// move the tracker cursor appropriately.
 			DWORD start;
 			SendMessage(hWnd, EM_GETSEL, cast(WPARAM)&start, 0);
 			p[start] = '\0';
 			track *t = cursor_track;
-			int new_pos = calc_track_size_from_text(p);
+			int new_pos = calc_track_size_from_text(&p[0]);
 			pattern_changed();
 			// XXX: may point to middle of a code
 			restore_cursor(t, new_pos);
@@ -953,10 +953,11 @@ private void paste_sel() {
 	if (!OpenClipboard(hwndMain)) return;
 	HGLOBAL hglb = GetClipboardData(CF_TEXT);
 	if (hglb) {
-		char *txt = cast(char*)GlobalLock(hglb);
+		char* txtP = cast(char*)GlobalLock(hglb);
+		char[] txt = txtP[0 .. strlen(txtP)];
 		track temp_track = { 0, null };
 		try {
-			text_to_track(txt, &temp_track, !!cursor.sub_count);
+			text_to_track(txt, temp_track, !!cursor.sub_count);
 			track_insert(temp_track.size, temp_track.track);
 			free(temp_track.track);
 		} catch (Exception e) {

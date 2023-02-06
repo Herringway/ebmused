@@ -9,7 +9,7 @@ import misc;
 import parser;
 import song;
 
-private int unhex(int chr) nothrow {
+private int unhex(int chr) nothrow @safe {
 	if (chr >= '0' && chr <= '9')
 		return chr - '0';
 	chr |= 0x20; // fold to lower case
@@ -19,7 +19,6 @@ private int unhex(int chr) nothrow {
 }
 
 uint calc_track_size_from_text(char *p) {
-	char[60] buf = 0;
 	int size = 0;
 	while (*p) {
 		int c = *p++;
@@ -33,24 +32,23 @@ uint calc_track_size_from_text(char *p) {
 			if (*p == ',') strtol(p + 1, &p, 10);
 			size += 4;
 		} else {
-			sformat!"Bad character: '%s'"(buf[], c);
-			throw new EbmusedWarningException(buf.fromStringz.idup, "");
+			throw new EbmusedWarningException(format!"Bad character: '%s'"(c), "");
 		}
 	}
 	return size;
 }
 
 // returns 1 if successful
-void text_to_track(char *str, track *t, bool is_sub) {
+void text_to_track(char[] str, ref track t, bool is_sub) {
 	ubyte *data;
-	int size = calc_track_size_from_text(str);
+	int size = calc_track_size_from_text(&str[0]);
 
 	int pos;
 	if (size == 0 && !is_sub) {
 		data = null;
 	} else {
 		data = cast(ubyte*)malloc(size + 1);
-		char *p = str;
+		char *p = &str[0];
 		pos = 0;
 		while (*p) {
 			int c = *p++;
