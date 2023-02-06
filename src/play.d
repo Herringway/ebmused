@@ -1,11 +1,15 @@
 import core.stdc.math;
 import core.stdc.stdio;
 import core.stdc.string;
+import std.experimental.logger;
+import std.exception;
 import ebmusv2;
 import structs;
 import main;
 import parser;
 import brr;
+
+import nspcplay.common : Instrument;
 
 __gshared int bufsize = 2205;
 __gshared int chmask = 255;
@@ -14,6 +18,9 @@ __gshared bool song_playing;
 __gshared int mixrate = 44100;
 __gshared ubyte[65536] spc;
 __gshared int inst_base = 0x6E00;
+
+ushort[2][] sampleDirectory;
+Instrument[] instruments;
 
 // note style tables, from 6F80
 immutable ubyte[8] release_table = [
@@ -593,6 +600,8 @@ void initialize_state() nothrow {
 		state.chan[i].panning.cur = 0x0A00;
 		state.chan[i].samp_pos = -1;
 	}
+	instruments = cast(Instrument[])(spc[inst_base .. inst_base + 128 * Instrument.sizeof]);
+	sampleDirectory = cast(ushort[2][])(spc[sample_ptr_base .. sample_ptr_base + 128 * (ushort[2]).sizeof]);
 	state.volume.cur = 0xC000;
 	state.tempo.cur = 0x2000;
 	state.cycle_timer = 255;

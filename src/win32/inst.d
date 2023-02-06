@@ -99,7 +99,7 @@ static void note_on(int note, int velocity) nothrow {
 	channel_state *c = &state.chan[ch];
 	set_inst(&state, c, inst);
 	c.samp_pos = 0;
-	c.samp = &samp[spc[inst_base + 6*c.inst]];
+	c.samp = &samp[instruments[c.inst].sampleID];
 
 	c.note_release = 1;
 	c.env_height = 1;
@@ -238,7 +238,6 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		lvi.iItem = assumeWontThrow(ListView_GetItemCount(samplist));
 		for (int i = 0; i < 128; i++) { //filling out the Sample Directory ListBox
 			if (samp[i].data == null) continue;
-			ushort *ptr = cast(ushort *)&spc[0x6C00 + 4*i];
 			lvi.mask = LVIF_TEXT | LVIF_PARAM;
 			lvi.lParam = i;
 			sprintf(&buf[0], "%02X", i);
@@ -248,11 +247,11 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 			lvi.mask = LVIF_TEXT;
 			lvi.iSubItem = 1;
-			sprintf(&buf[0], "%04X", ptr[0]);
+			sprintf(&buf[0], "%04X", sampleDirectory[i][0]);
 			ListView_SetItemA(samplist, &lvi);
 
 			lvi.iSubItem = 2;
-			sprintf(&buf[0], "%04X", ptr[1]);
+			sprintf(&buf[0], "%04X", sampleDirectory[i][1]);
 			ListView_SetItemA(samplist, &lvi);
 
 			lvi.iSubItem = 3;
@@ -265,24 +264,24 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		ubyte *p = &valid_insts[0];
 		lvi.iItem = assumeWontThrow(ListView_GetItemCount(instlist));
 		for (int i = 0; i < 64; i++) { //filling out the Instrument Config ListBox
-			ubyte *inst = &spc[inst_base + i*6];
-			if (inst[4] == 0 && inst[5] == 0) continue;
+			const instrument = instruments[i];
+			if (instrument.tuning == 0) continue;
 			//            Index ADSR            Tuning
 
 			lvi.mask = LVIF_TEXT | LVIF_PARAM;
 			lvi.lParam = i;
-			assumeWontThrow(sformat!"%02X\0"(buf[], inst[0]));
+			assumeWontThrow(sformat!"%02X\0"(buf[], instrument.sampleID));
 			lvi.pszText = &buf[0];
 			lvi.iSubItem = 0;
 			ListView_InsertItemA(instlist, &lvi);
 
 			lvi.mask = LVIF_TEXT;
 			lvi.iSubItem = 1;
-			assumeWontThrow(sformat!"%02X %02X %02X\0"(buf[], inst[1], inst[2], inst[3]));
+			assumeWontThrow(sformat!"%04X %02X\0"(buf[], instrument.adsrGain.adsr, instrument.adsrGain.gain));
 			ListView_SetItemA(instlist, &lvi);
 
 			lvi.iSubItem = 2;
-			assumeWontThrow(sformat!"%02X%02X\0"(buf[], inst[4], inst[5]));
+			assumeWontThrow(sformat!"%04X\0"(buf[], instrument.tuning));
 			ListView_SetItemA(instlist, &lvi);
 
 			lvi.iItem++;
