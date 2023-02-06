@@ -74,7 +74,7 @@ void winmm_message(uint uMsg) nothrow {
 	if (song_playing) {
 		while (bufs_used < 2) {
 			if (hwndTracker != null)
-				tracker_scrolled();
+				handleErrorsUI(tracker_scrolled());
 			auto buffer = (cast(short[2]*)curbuf.lpData)[0 .. curbuf.dwBufferLength];
 			fill_buffer(buffer);
 			waveOutWrite(hwo, curbuf, wh[0].sizeof);

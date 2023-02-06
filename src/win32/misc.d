@@ -124,10 +124,8 @@ auto errorClassToIcon(ErrorClass errorClass) @safe pure nothrow {
 T handleErrorsUI(T)(lazy T val) {
 	try {
 		return val;
-	} catch (EbmusedException e) {
-		MessageBox2(e.title, e.msg, errorClassToIcon(e.errorClass));
 	} catch (Exception e) {
-		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
+		handleError(e);
 	}
 	static if (!is(T == void)) {
 		return val.init;
@@ -136,10 +134,16 @@ T handleErrorsUI(T)(lazy T val) {
 T handleErrorsUI(T)(lazy T val, T defaultValue) {
 	try {
 		return val;
-	} catch (EbmusedException e) {
-		MessageBox2(e.title, e.msg, errorClassToIcon(e.errorClass));
 	} catch (Exception e) {
-		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
+		handleError(e);
 	}
 	return defaultValue;
+}
+
+void handleError(Exception e) nothrow {
+	if (auto ebmusedException = cast(EbmusedException)e) {
+		MessageBox2(ebmusedException.title, ebmusedException.msg, errorClassToIcon(ebmusedException.errorClass));
+	} else {
+		MessageBox2("Unknown error", e.msg, MB_ICONERROR);
+	}
 }

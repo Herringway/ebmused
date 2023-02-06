@@ -97,13 +97,13 @@ __gshared private Parser cursor;
 __gshared private int pat_length;
 __gshared private PAINTSTRUCT ps;
 
-void tracker_scrolled() nothrow {
+void tracker_scrolled() {
 	SetScrollPos(hwndTracker, SB_VERT, state.patpos, true);
 	InvalidateRect(hwndTracker, null, false);
 	InvalidateRect(hwndState, null, false);
 }
 
-private void scroll_to(int new_pos) nothrow {
+private void scroll_to(int new_pos) {
 	if (new_pos == state.patpos) return;
 	if (new_pos < state.patpos)
 		state = pattop_state;
@@ -111,7 +111,7 @@ private void scroll_to(int new_pos) nothrow {
 	tracker_scrolled();
 }
 
-private COLORREF get_bkcolor(int sub_loops) nothrow {
+private COLORREF get_bkcolor(int sub_loops) {
 	if (sub_loops == 0)
 		return 0xFFFFFF;
 	int c = 0x808080;
@@ -122,7 +122,7 @@ private COLORREF get_bkcolor(int sub_loops) nothrow {
 	return c;
 }
 
-private void get_font_size(HWND hWnd) nothrow {
+private void get_font_size(HWND hWnd) {
 	TEXTMETRIC tm;
 	HDC hdc = GetDC(hWnd);
 	HFONT oldfont = SelectObject(hdc, default_font());
@@ -133,7 +133,7 @@ private void get_font_size(HWND hWnd) nothrow {
 	font_height = tm.tmHeight;
 }
 
-private void get_sel_range() nothrow {
+private void get_sel_range() {
 	ubyte *s = sel_from;
 	ubyte *e = cursor.ptr;
 
@@ -148,7 +148,7 @@ private void get_sel_range() nothrow {
 	}
 }
 
-private void show_track_text() nothrow {
+private void show_track_text() {
 	char *txt = null;
 	track *t = cursor_track;
 	if (t.size) {
@@ -159,7 +159,7 @@ private void show_track_text() nothrow {
 	free(txt);
 }
 
-private void cursor_moved(bool select) nothrow {
+private void cursor_moved(bool select) {
 	char[23] caption;
 	track *t;
 
@@ -200,7 +200,7 @@ private void cursor_moved(bool select) nothrow {
 	InvalidateRect(hwndTracker, null, false);
 }
 
-private void set_cur_chan(int ch) nothrow {
+private void set_cur_chan(int ch) {
 	char[17] titleCopy = cs_title;
 	cursor_chan = ch;
 	titleCopy[15] = cast(char)('0' + ch);
@@ -209,42 +209,37 @@ private void set_cur_chan(int ch) nothrow {
 }
 
 void load_pattern_into_tracker() nothrow {
-	if (hwndTracker == null) return;
+	try {
+		if (hwndTracker == null) return;
 
-	InvalidateRect(hwndOrder, null, false);
-	InvalidateRect(hwndState, null, false);
-	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST,
-		CB_SETCURSEL, cur_song.order[pattop_state.ordnum], 0);
+		InvalidateRect(hwndOrder, null, false);
+		InvalidateRect(hwndState, null, false);
+		SendDlgItemMessage(hwndEditor, IDC_PAT_LIST,
+			CB_SETCURSEL, cur_song.order[pattop_state.ordnum], 0);
 
-	parser_init(&cursor, &state.chan[cursor_chan]);
-	cursor_pos = state.patpos + state.chan[cursor_chan].next;
-	cursor_track = null;
-	cursor_moved(false);
+		parser_init(&cursor, &state.chan[cursor_chan]);
+		cursor_pos = state.patpos + state.chan[cursor_chan].next;
+		cursor_track = null;
+		cursor_moved(false);
 
-	pat_length = 0;
-	for (int ch = 0; ch < 8; ch++) {
-		if (pattop_state.chan[ch].ptr == null) continue;
-		Parser p;
-		parser_init(&p, &pattop_state.chan[ch]);
-		do {
-			if (*p.ptr >= 0x80 && *p.ptr < 0xE0)
-				pat_length += p.note_len;
-		} while (parser_advance(&p));
-		break;
+		pat_length = 0;
+		for (int ch = 0; ch < 8; ch++) {
+			if (pattop_state.chan[ch].ptr == null) continue;
+			Parser p;
+			parser_init(&p, &pattop_state.chan[ch]);
+			do {
+				if (*p.ptr >= 0x80 && *p.ptr < 0xE0)
+					pat_length += p.note_len;
+			} while (parser_advance(&p));
+			break;
+		}
+		SetScrollRange(hwndTracker, SB_VERT, 0, pat_length, true);
+	} catch (Exception e) {
+		handleError(e);
 	}
-/*	{	SCROLLINFO si;
-		si.cbSize = sizeof(SCROLLINFO);
-		si.fMask = SIF_PAGE | SIF_RANGE;
-		si.nPage = 96;
-		si.nMin = 0;
-		si.nMax = pat_length + 95;
-		SetScrollInfo(hwndTracker, SB_VERT, &si, true);
-	}*/
-	SetScrollRange(hwndTracker, SB_VERT, 0, pat_length, true);
-
 }
 
-private void pattern_changed() nothrow {
+private void pattern_changed() {
 	int pos = state.patpos;
 	scroll_to(0);
 	state.ordnum--;
@@ -254,7 +249,7 @@ private void pattern_changed() nothrow {
 	cur_song.changed = true;
 }
 
-private void restore_cursor(track *t, int offset) nothrow {
+private void restore_cursor(track *t, int offset) {
 	ubyte *target_ptr = t.track + offset;
 	cursor_home(false);
 	do {
@@ -317,7 +312,7 @@ extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wP
 	return CallWindowProc(EditWndProc, hWnd, uMsg, wParam, lParam);
 }
 
-private void goto_order(int pos) nothrow {
+private void goto_order(int pos) {
 	int i;
 	initialize_state();
 	for (i = 0; i < pos; i++) {
@@ -337,19 +332,19 @@ private void goto_order(int pos) nothrow {
 	load_pattern_into_tracker();
 }
 
-private void pattern_added() nothrow {
+private void pattern_added() {
 	char[12] buf;
 	sprintf(&buf[0], "%d", cur_song.patterns - 1);
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST, CB_ADDSTRING,
 		0, cast(LPARAM)&buf[0]);
 }
 
-private void pattern_deleted() nothrow {
+private void pattern_deleted() {
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST, CB_DELETESTRING,
 		cur_song.patterns, 0);
 }
 
-private void show_repeat() nothrow {
+private void show_repeat() {
 	SetDlgItemInt(hwndEditor, IDC_REPEAT, cur_song.repeat, false);
 	SetDlgItemInt(hwndEditor, IDC_REPEAT_POS, cur_song.repeat_pos, false);
 }
@@ -367,175 +362,182 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		ID_SET_DURATION_5, ID_SET_DURATION_6,
 		0
 	];
-	switch (uMsg) {
-	case WM_CREATE:
-		get_font_size(hWnd);
-		editor_template.divy = (cast(CREATESTRUCT *)lParam).cy - (font_height * 7 + 17);
-		create_controls(hWnd, &editor_template, lParam);
-		for (int i = 0; i < 8; i++) {
-			char[2] buf = [ cast(char)('0' + i), 0 ];
-			HWND b = CreateWindowA("Button", &buf[0],
-				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0,
-				hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, null);
-			SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
-			// This font was set up earlier by the ebmused_order control
-			SendMessage(b, WM_SETFONT, cast(size_t)order_font(), 0);
-		}
-		EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
-		break;
-	case WM_SONG_IMPORTED:
-	case WM_SONG_LOADED:
-		EnableWindow(hWnd, true);
-		enable_menu_items(&editor_menu_cmds[0], MF_ENABLED);
-		show_repeat();
-		HWND cb = GetDlgItem(hWnd, IDC_PAT_LIST);
-		SendMessage(cb, CB_RESETCONTENT, 0, 0);
-		for (int i = 0; i < cur_song.patterns; i++) {
-			char[11] buf;
-			sprintf(&buf[0], "%d", i);
-			SendMessage(cb, CB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
-		}
-		load_pattern_into_tracker();
-		break;
-	case WM_ROM_CLOSED:
-	case WM_SONG_NOT_LOADED:
-		EnableWindow(hWnd, false);
-		enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
-		break;
-	case WM_DESTROY:
-		save_cur_song_to_pack();
-		enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
-		break;
-	case WM_COMMAND: {
-		int id = LOWORD(wParam);
-		if (id == IDC_REPEAT || id == IDC_REPEAT_POS) {
-			if (HIWORD(wParam) != EN_KILLFOCUS) break;
-			BOOL success;
-			UINT n = GetDlgItemInt(hWnd, id, &success, false);
-			int *p = id == IDC_REPEAT ? &cur_song.repeat : &cur_song.repeat_pos;
-			if (success) {
-				UINT limit = (id == IDC_REPEAT ? 256 : cur_song.order_length);
-				if (n < limit && *p != n) {
-					*p = n;
-					cur_song.changed = true;
-				}
+	try {
+		switch (uMsg) {
+		case WM_CREATE:
+			get_font_size(hWnd);
+			editor_template.divy = (cast(CREATESTRUCT *)lParam).cy - (font_height * 7 + 17);
+			create_controls(hWnd, &editor_template, lParam);
+			for (int i = 0; i < 8; i++) {
+				char[2] buf = [ cast(char)('0' + i), 0 ];
+				HWND b = CreateWindowA("Button", &buf[0],
+					WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 0, 0,
+					hWnd, cast(HMENU)(IDC_ENABLE_CHANNEL_0 + i), hinstance, null);
+				SendMessage(b, BM_SETCHECK, chmask >> i & 1, 0);
+				// This font was set up earlier by the ebmused_order control
+				SendMessage(b, WM_SETFONT, cast(size_t)order_font(), 0);
 			}
-			SetDlgItemInt(hWnd, id, *p, false);
-		} else if (id == IDC_PAT_LIST) {
-			if (HIWORD(wParam) != CBN_SELCHANGE) break;
-			cur_song.order[state.ordnum] =
-				cast(int)SendMessage(cast(HWND)lParam, CB_GETCURSEL, 0, 0);
-			scroll_to(0);
-			pattern_changed();
-		} else if (id == IDC_PAT_ADD || id == IDC_PAT_INS) {
-			int pat = id == IDC_PAT_ADD ? cur_song.patterns : cur_song.order[state.ordnum];
-			int ord = cur_song.order_length;
-			if (id == IDC_PAT_ADD)
-			{
-				track *t = pattern_insert(pat);
-				memset(t, 0, track.sizeof * 8);
-				pattern_added();
-			}
-			order_insert(ord, pat);
-			goto_order(ord);
-			cur_song.changed = true;
-		} else if (id == IDC_PAT_DEL) {
-			if (cur_song.patterns == 1) break;
-			pattern_delete(cur_song.order[state.ordnum]);
-			pattern_deleted();
-			goto_order(state.ordnum + 1);
-			cur_song.changed = true;
+			EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
+			break;
+		case WM_SONG_IMPORTED:
+		case WM_SONG_LOADED:
+			EnableWindow(hWnd, true);
+			enable_menu_items(&editor_menu_cmds[0], MF_ENABLED);
 			show_repeat();
-		} else if (id >= IDC_ENABLE_CHANNEL_0) {
-			chmask ^= 1 << (id - IDC_ENABLE_CHANNEL_0);
+			HWND cb = GetDlgItem(hWnd, IDC_PAT_LIST);
+			SendMessage(cb, CB_RESETCONTENT, 0, 0);
+			for (int i = 0; i < cur_song.patterns; i++) {
+				char[11] buf;
+				sprintf(&buf[0], "%d", i);
+				SendMessage(cb, CB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
+			}
+			load_pattern_into_tracker();
+			break;
+		case WM_ROM_CLOSED:
+		case WM_SONG_NOT_LOADED:
+			EnableWindow(hWnd, false);
+			enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
+			break;
+		case WM_DESTROY:
+			save_cur_song_to_pack();
+			enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
+			break;
+		case WM_COMMAND:
+			int id = LOWORD(wParam);
+			if (id == IDC_REPEAT || id == IDC_REPEAT_POS) {
+				if (HIWORD(wParam) != EN_KILLFOCUS) break;
+				BOOL success;
+				UINT n = GetDlgItemInt(hWnd, id, &success, false);
+				int *p = id == IDC_REPEAT ? &cur_song.repeat : &cur_song.repeat_pos;
+				if (success) {
+					UINT limit = (id == IDC_REPEAT ? 256 : cur_song.order_length);
+					if (n < limit && *p != n) {
+						*p = n;
+						cur_song.changed = true;
+					}
+				}
+				SetDlgItemInt(hWnd, id, *p, false);
+			} else if (id == IDC_PAT_LIST) {
+				if (HIWORD(wParam) != CBN_SELCHANGE) break;
+				cur_song.order[state.ordnum] =
+					cast(int)SendMessage(cast(HWND)lParam, CB_GETCURSEL, 0, 0);
+				scroll_to(0);
+				pattern_changed();
+			} else if (id == IDC_PAT_ADD || id == IDC_PAT_INS) {
+				int pat = id == IDC_PAT_ADD ? cur_song.patterns : cur_song.order[state.ordnum];
+				int ord = cur_song.order_length;
+				if (id == IDC_PAT_ADD)
+				{
+					track *t = pattern_insert(pat);
+					memset(t, 0, track.sizeof * 8);
+					pattern_added();
+				}
+				order_insert(ord, pat);
+				goto_order(ord);
+				cur_song.changed = true;
+			} else if (id == IDC_PAT_DEL) {
+				if (cur_song.patterns == 1) break;
+				pattern_delete(cur_song.order[state.ordnum]);
+				pattern_deleted();
+				goto_order(state.ordnum + 1);
+				cur_song.changed = true;
+				show_repeat();
+			} else if (id >= IDC_ENABLE_CHANNEL_0) {
+				chmask ^= 1 << (id - IDC_ENABLE_CHANNEL_0);
+			}
+			break;
+		case WM_SIZE:
+			editor_template.divy = HIWORD(lParam) - (font_height * 7 + 17);
+			move_controls(hWnd, &editor_template, lParam);
+			int start = scale_x(10) + GetSystemMetrics(SM_CXBORDER) + pos_width;
+			int right = start;
+			for (int i = 0; i < 8; i++) {
+				int left = right + 1;
+				right = start + (tracker_width * (i + 1) >> 3);
+				MoveWindow(GetDlgItem(hWnd, IDC_ENABLE_CHANNEL_0+i),
+					left, scale_y(40), right - left, scale_y(20), true);
+			}
+			break;
+		default:
+			return DefWindowProc(hWnd, uMsg, wParam, lParam);
 		}
-		break;
-	}
-	case WM_SIZE:
-		editor_template.divy = HIWORD(lParam) - (font_height * 7 + 17);
-		move_controls(hWnd, &editor_template, lParam);
-		int start = scale_x(10) + GetSystemMetrics(SM_CXBORDER) + pos_width;
-		int right = start;
-		for (int i = 0; i < 8; i++) {
-			int left = right + 1;
-			right = start + (tracker_width * (i + 1) >> 3);
-			MoveWindow(GetDlgItem(hWnd, IDC_ENABLE_CHANNEL_0+i),
-				left, scale_y(40), right - left, scale_y(20), true);
-		}
-		break;
-	default:
-		return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	} catch (Exception e) {
+		handleError(e);
 	}
 	return 0;
 }
 
 extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
-	switch (uMsg) {
-	case WM_CREATE:
-		hwndOrder = hWnd;
-		break;
-	case WM_LBUTTONDOWN: {
-		int pos = LOWORD(lParam) / scale_x(25);
-		if (pos >= cur_song.order_length) break;
-		SetFocus(hWnd);
-		goto_order(pos);
-		break;
-	}
-	case WM_KILLFOCUS: InvalidateRect(hWnd, null, false); break;
-	case WM_KEYDOWN:
-		if (wParam == VK_LEFT) {
-			goto_order(state.ordnum - 1);
-		} else if (wParam == VK_RIGHT) {
-			goto_order(state.ordnum + 1);
-		} else if (wParam == VK_INSERT) {
-			order_insert(state.ordnum + 1, cur_song.order[state.ordnum]);
-			show_repeat();
-			InvalidateRect(hWnd, null, false);
-			cur_song.changed = true;
-		} else if (wParam == VK_DELETE) {
-			if (cur_song.order_length <= 1) break;
-			order_delete(state.ordnum);
-			show_repeat();
-			goto_order(state.ordnum);
-			cur_song.changed = true;
+	try {
+		switch (uMsg) {
+		case WM_CREATE:
+			hwndOrder = hWnd;
+			break;
+		case WM_LBUTTONDOWN: {
+			int pos = LOWORD(lParam) / scale_x(25);
+			if (pos >= cur_song.order_length) break;
+			SetFocus(hWnd);
+			goto_order(pos);
+			break;
 		}
-		break;
-	case WM_PAINT: {
-		HDC hdc = BeginPaint(hWnd, &ps);
-		SelectObject(hdc, order_font());
-		RECT rc;
-		GetClientRect(hWnd, &rc);
-		int order_width = scale_x(25);
-		for (int i = 0; i < cur_song.order_length; i++) {
-			char[6] buf;
-			int len = sprintf(&buf[0], "%d", cur_song.order[i]);
-			rc.right = rc.left + order_width;
-			COLORREF tc = 0, bc = 0;
-			if (i == pattop_state.ordnum) {
-				tc = SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
-				bc = SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
+		case WM_KILLFOCUS: InvalidateRect(hWnd, null, false); break;
+		case WM_KEYDOWN:
+			if (wParam == VK_LEFT) {
+				goto_order(state.ordnum - 1);
+			} else if (wParam == VK_RIGHT) {
+				goto_order(state.ordnum + 1);
+			} else if (wParam == VK_INSERT) {
+				order_insert(state.ordnum + 1, cur_song.order[state.ordnum]);
+				show_repeat();
+				InvalidateRect(hWnd, null, false);
+				cur_song.changed = true;
+			} else if (wParam == VK_DELETE) {
+				if (cur_song.order_length <= 1) break;
+				order_delete(state.ordnum);
+				show_repeat();
+				goto_order(state.ordnum);
+				cur_song.changed = true;
 			}
-			ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], len, null);
-			if (i == pattop_state.ordnum) {
-				SetTextColor(hdc, tc);
-				SetBkColor(hdc, bc);
-				if (GetFocus() == hWnd)
-					DrawFocusRect(hdc, &rc);
+			break;
+		case WM_PAINT: {
+			HDC hdc = BeginPaint(hWnd, &ps);
+			SelectObject(hdc, order_font());
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+			int order_width = scale_x(25);
+			for (int i = 0; i < cur_song.order_length; i++) {
+				char[6] buf;
+				int len = sprintf(&buf[0], "%d", cur_song.order[i]);
+				rc.right = rc.left + order_width;
+				COLORREF tc = 0, bc = 0;
+				if (i == pattop_state.ordnum) {
+					tc = SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+					bc = SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
+				}
+				ExtTextOutA(hdc, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], len, null);
+				if (i == pattop_state.ordnum) {
+					SetTextColor(hdc, tc);
+					SetBkColor(hdc, bc);
+					if (GetFocus() == hWnd)
+						DrawFocusRect(hdc, &rc);
+				}
+				rc.left = rc.right;
 			}
-			rc.left = rc.right;
+			rc.right = ps.rcPaint.right;
+			FillRect(hdc, &rc, cast(HBRUSH)(COLOR_WINDOW + 1));
+			EndPaint(hWnd, &ps);
+			break;
 		}
-		rc.right = ps.rcPaint.right;
-		FillRect(hdc, &rc, cast(HBRUSH)(COLOR_WINDOW + 1));
-		EndPaint(hWnd, &ps);
-		break;
-	}
 
-	default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
+		default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
+		}
+	} catch (Exception e) {
+		handleError(e);
 	}
 	return 0;
 }
 
-private void tracker_paint(HWND hWnd) nothrow {
+private void tracker_paint(HWND hWnd) {
 	HDC hdc = BeginPaint(hWnd, &ps);
 	RECT rc;
 	char[8] codes;
@@ -712,7 +714,7 @@ paint_end:
 	EndPaint(hWnd, &ps);
 }
 
-private bool cursor_fwd(bool select) nothrow {
+private bool cursor_fwd(bool select) {
 	int byte_ = *cursor.ptr;
 	if (select) {
 		// Don't select past end of subroutine
@@ -730,7 +732,7 @@ private bool cursor_fwd(bool select) nothrow {
 	return parser_advance(&cursor);
 }
 
-private bool cursor_home(bool select) nothrow {
+private bool cursor_home(bool select) {
 	if (select && cursor.sub_count) {
 		// Go to the top of the subroutine
 		if (cursor.ptr == cursor_track.track)
@@ -760,7 +762,7 @@ private bool cursor_home(bool select) nothrow {
 /// \brief Attempts to move the cursor back by one control code.
 /// \return Returns false if the cursor cannot be moved backwards due
 /// to already being at the top of the track, otherwise returns true.
-private bool cursor_back(bool select) nothrow {
+private bool cursor_back(bool select) {
 	int prev_pos;
 	Parser prev;
 	Parser target = cursor;
@@ -778,18 +780,18 @@ private bool cursor_back(bool select) nothrow {
 	return true;
 }
 
-private bool cursor_end(bool select) nothrow {
+private bool cursor_end(bool select) {
 	while (cursor_fwd(select)) {}
 	return true;
 }
 
-private bool cursor_on_note() nothrow {
+private bool cursor_on_note() {
 	// Consider the ending [00] on a track/subroutine as a note, since it's
 	// displayed on the right (for end of track) and you can insert notes there.
 	return *cursor.ptr == 0 || (*cursor.ptr >= 0x80 && *cursor.ptr < 0xE0);
 }
 
-private bool cursor_up(bool select) nothrow {
+private bool cursor_up(bool select) {
 	bool on_note = cursor_on_note();
 	Parser target = cursor;
 	if (!cursor_home(select))
@@ -831,7 +833,7 @@ private bool cursor_up(bool select) nothrow {
 	return true;
 }
 
-private bool cursor_down(bool select) nothrow {
+private bool cursor_down(bool select) {
 	bool on_note = cursor_on_note();
 	while (cursor_fwd(select) && !cursor_on_note()) {}
 	if (!on_note)
@@ -839,7 +841,7 @@ private bool cursor_down(bool select) nothrow {
 	return true;
 }
 
-private void cursor_to_xy(int x, int y, bool select) nothrow {
+private void cursor_to_xy(int x, int y, bool select) {
 	x -= pos_width;
 	int ch = x * 8 / tracker_width;
 	if (ch < 0 || ch > 7) return;
@@ -905,7 +907,7 @@ private void cursor_to_xy(int x, int y, bool select) nothrow {
 	cursor_moved(select);
 }
 
-bool move_cursor(bool function(bool select) nothrow func, bool select) nothrow {
+bool move_cursor(bool function(bool select) func, bool select) {
 	if (cursor.ptr == null) return false;
 	if (func(select)) {
 		cursor_moved(select);
@@ -915,7 +917,7 @@ bool move_cursor(bool function(bool select) nothrow func, bool select) nothrow {
 }
 
 // Inserts code at the cursor
-private void track_insert(int size, const ubyte *data) nothrow {
+private void track_insert(int size, const ubyte *data) {
 	track *t = cursor_track;
 	int off = cast(int)(cursor.ptr - t.track);
 	t.size += size;
@@ -928,7 +930,7 @@ private void track_insert(int size, const ubyte *data) nothrow {
 	restore_cursor(t, off);
 }
 
-private bool copy_sel() nothrow {
+private bool copy_sel() {
 	ubyte *start = sel_start;
 	ubyte *end = sel_end;
 	if (start == end) return false;
@@ -947,7 +949,7 @@ private bool copy_sel() nothrow {
 	return true;
 }
 
-private void paste_sel() nothrow {
+private void paste_sel() {
 	if (!OpenClipboard(hwndMain)) return;
 	HGLOBAL hglb = GetClipboardData(CF_TEXT);
 	if (hglb) {
@@ -965,7 +967,7 @@ private void paste_sel() nothrow {
 	CloseClipboard();
 }
 
-private void delete_sel(bool cut) nothrow {
+private void delete_sel(bool cut) {
 	track *t = cursor_track;
 	if (t.track == null) return;
 	ubyte* start = sel_start;
@@ -993,7 +995,7 @@ private void delete_sel(bool cut) nothrow {
 	restore_cursor(t, cast(int)(start - t.track));
 }
 
-private void updateOrInsertDuration(ubyte function(ubyte, int) nothrow callback, int durationOrOffset) nothrow
+private void updateOrInsertDuration(ubyte function(ubyte, int) callback, int durationOrOffset)
 {
 	// We cannot insert a duration code before an 0x00 code,
 	// so ensure that's not the case before proceeding.
@@ -1063,28 +1065,28 @@ private void updateOrInsertDuration(ubyte function(ubyte, int) nothrow callback,
 	}
 }
 
-private ubyte setDurationOffsetCallback(ubyte originalDuration, int offset) nothrow
+private ubyte setDurationOffsetCallback(ubyte originalDuration, int offset)
 {
 	ubyte newDuration = cast(ubyte)min(max(0x00, originalDuration + offset), 0xFF);
 	return (newDuration >= 0x01 && newDuration <= 0x7F) ? newDuration : 0;
 }
 
-private ubyte setDurationCallback(ubyte originalDuration, int duration) nothrow
+private ubyte setDurationCallback(ubyte originalDuration, int duration)
 {
 	return cast(ubyte)((duration >= 0x01 && duration <= 0x7F) ? duration : 0);
 }
 
-private void incrementDuration() nothrow
+private void incrementDuration()
 {
 	updateOrInsertDuration(&setDurationOffsetCallback, 1);
 }
 
-private void decrementDuration() nothrow
+private void decrementDuration()
 {
 	updateOrInsertDuration(&setDurationOffsetCallback, -1);
 }
 
-private void setDuration(ubyte duration) nothrow
+private void setDuration(ubyte duration)
 {
 	updateOrInsertDuration(&setDurationCallback, duration);
 }
@@ -1239,7 +1241,7 @@ void editor_command(int id) {
 	}
 }
 
-private void addOrInsertNote(int note) nothrow
+private void addOrInsertNote(int note)
 {
 	if (note > 0x0 && note < 0x70) {
 		note |= 0x80;
@@ -1256,7 +1258,7 @@ private void addOrInsertNote(int note) nothrow
 	}
 }
 
-private void tracker_keydown(WPARAM wParam) nothrow {
+private void tracker_keydown(WPARAM wParam) {
 	bool control = !!(GetKeyState(VK_CONTROL) & 0x8000);
 	bool shift = !!(GetKeyState(VK_SHIFT) & 0x8000);
 	switch (wParam) {
@@ -1356,59 +1358,63 @@ private void tracker_keydown(WPARAM wParam) nothrow {
 }
 
 extern(Windows) LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
-	switch (uMsg) {
-	case WM_CREATE: hwndTracker = hWnd; break;
-	case WM_DESTROY: hwndTracker = null; break;
-	case WM_KEYDOWN: tracker_keydown(wParam); break;
-	case WM_MOUSEWHEEL:
-		scroll_to(state.patpos - (zoom * cast(short)HIWORD(wParam)) / WHEEL_DELTA);
-		break;
-	case WM_VSCROLL:
-		switch (LOWORD(wParam)) {
-			case SB_LINEUP: scroll_to(state.patpos - zoom); break;
-			case SB_LINEDOWN: scroll_to(state.patpos + zoom); break;
-			case SB_PAGEUP: scroll_to(state.patpos - 96); break;
-			case SB_PAGEDOWN: scroll_to(state.patpos + 96); break;
-			case SB_THUMBTRACK: scroll_to(HIWORD(wParam)); break;
-			default: break;
+	try {
+		switch (uMsg) {
+		case WM_CREATE: hwndTracker = hWnd; break;
+		case WM_DESTROY: hwndTracker = null; break;
+		case WM_KEYDOWN: tracker_keydown(wParam); break;
+		case WM_MOUSEWHEEL:
+			scroll_to(state.patpos - (zoom * cast(short)HIWORD(wParam)) / WHEEL_DELTA);
+			break;
+		case WM_VSCROLL:
+			switch (LOWORD(wParam)) {
+				case SB_LINEUP: scroll_to(state.patpos - zoom); break;
+				case SB_LINEDOWN: scroll_to(state.patpos + zoom); break;
+				case SB_PAGEUP: scroll_to(state.patpos - 96); break;
+				case SB_PAGEDOWN: scroll_to(state.patpos + 96); break;
+				case SB_THUMBTRACK: scroll_to(HIWORD(wParam)); break;
+				default: break;
+			}
+			break;
+		case WM_SIZE:
+			tracker_width = LOWORD(lParam) - pos_width;
+			tracker_height = HIWORD(lParam);
+			break;
+		case WM_LBUTTONDOWN:
+			SetFocus(hWnd);
+			cursor_to_xy(LOWORD(lParam), HIWORD(lParam),
+				!!(GetKeyState(VK_SHIFT) & 0x8000));
+			break;
+		case WM_MOUSEMOVE:
+			if (wParam & MK_LBUTTON)
+				cursor_to_xy(LOWORD(lParam), HIWORD(lParam), true);
+			break;
+		case WM_CONTEXTMENU:
+			TrackPopupMenu(GetSubMenu(hcontextmenu, 0), 0,
+				LOWORD(lParam), HIWORD(lParam), 0, hwndMain, null);
+			break;
+		case WM_SETFOCUS:
+			if (editbox_had_focus) {
+				editbox_had_focus = false;
+				cursor_track = null; // force update of editbox text
+				cursor_moved(false);
+			} else
+				// fallthrough
+		case WM_KILLFOCUS:
+			InvalidateRect(hWnd, null, false);
+			break;
+		case WM_PAINT: tracker_paint(hWnd); break;
+		default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
 		}
-		break;
-	case WM_SIZE:
-		tracker_width = LOWORD(lParam) - pos_width;
-		tracker_height = HIWORD(lParam);
-		break;
-	case WM_LBUTTONDOWN:
-		SetFocus(hWnd);
-		cursor_to_xy(LOWORD(lParam), HIWORD(lParam),
-			!!(GetKeyState(VK_SHIFT) & 0x8000));
-		break;
-	case WM_MOUSEMOVE:
-		if (wParam & MK_LBUTTON)
-			cursor_to_xy(LOWORD(lParam), HIWORD(lParam), true);
-		break;
-	case WM_CONTEXTMENU:
-		TrackPopupMenu(GetSubMenu(hcontextmenu, 0), 0,
-			LOWORD(lParam), HIWORD(lParam), 0, hwndMain, null);
-		break;
-	case WM_SETFOCUS:
-		if (editbox_had_focus) {
-			editbox_had_focus = false;
-			cursor_track = null; // force update of editbox text
-			cursor_moved(false);
-		} else
-			// fallthrough
-	case WM_KILLFOCUS:
-		InvalidateRect(hWnd, null, false);
-		break;
-	case WM_PAINT: tracker_paint(hWnd); break;
-	default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	} catch (Exception e) {
+		handleError(e);
 	}
 	return 0;
 }
 
 private HDC hdcState;
 
-private void show_state(int pos, const char *buf) nothrow {
+private void show_state(int pos, const char *buf) {
 	static const WORD[6] xt = [ 20, 80, 180, 240, 300, 360 ];
 	RECT rc;
 	int left = xt[pos >> 4];
@@ -1419,13 +1425,13 @@ private void show_state(int pos, const char *buf) nothrow {
 	ExtTextOutA(hdcState, rc.left, rc.top, ETO_OPAQUE, &rc, &buf[0], cast(uint)strlen(buf), null);
 }
 
-private void show_simple_state(int pos, ubyte value) nothrow {
+private void show_simple_state(int pos, ubyte value) {
 	char[3] buf;
 	sprintf(&buf[0], "%02X", value);
 	show_state(pos, &buf[0]);
 }
 
-private void show_slider_state(int pos, slider *s) nothrow {
+private void show_slider_state(int pos, slider *s) {
 	char[9] buf;
 	if (s.cycles)
 		sprintf(&buf[0], "%02X . %02X", s.cur >> 8, s.target);
@@ -1434,7 +1440,7 @@ private void show_slider_state(int pos, slider *s) nothrow {
 	show_state(pos, &buf[0]);
 }
 
-private void show_oscillator_state(int pos, ubyte start, ubyte speed, ubyte range) nothrow {
+private void show_oscillator_state(int pos, ubyte start, ubyte speed, ubyte range) {
 	char[9] buf;
 	if (range)
 		sprintf(&buf[0], "%02X %02X %02X", start, speed, range);
@@ -1444,25 +1450,29 @@ private void show_oscillator_state(int pos, ubyte start, ubyte speed, ubyte rang
 }
 
 extern(Windows) private void MidiInProc2(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) nothrow {
-	if (wMsg == MIM_DATA)
-	{
-		ubyte
-			eventType = (dwParam1 & 0xFF),
-			param1 = (dwParam1 >> 8) & 0xFF,
-			param2 = (dwParam1 >> 16) & 0xFF;
+	try {
+		if (wMsg == MIM_DATA)
+		{
+			ubyte
+				eventType = (dwParam1 & 0xFF),
+				param1 = (dwParam1 >> 8) & 0xFF,
+				param2 = (dwParam1 >> 16) & 0xFF;
 
-		int note = param1 + (octave - 4)*12;
+			int note = param1 + (octave - 4)*12;
 
-		if ((eventType & 0x80) && eventType < 0xF0) {	// if not a system exclusive message
-			switch (eventType & 0xF0) {
-			case 0x90:	// Note On event
-				if (param2 > 0	// Make sure volume is not zero. Some devices use this instead of the Note Off event.
-					&& note > 0 && note < 0x48)	// Make sure it's within range.
-					addOrInsertNote(note);
-				break;
-			default: break;
+			if ((eventType & 0x80) && eventType < 0xF0) {	// if not a system exclusive message
+				switch (eventType & 0xF0) {
+				case 0x90:	// Note On event
+					if (param2 > 0	// Make sure volume is not zero. Some devices use this instead of the Note Off event.
+						&& note > 0 && note < 0x48)	// Make sure it's within range.
+						addOrInsertNote(note);
+					break;
+				default: break;
+				}
 			}
 		}
+	} catch (Exception e) {
+		handleError(e);
 	}
 }
 
@@ -1478,65 +1488,68 @@ extern(Windows) LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		"Note length:", "Note style:", "Fine tune:",
 		"Subroutine:", "Vib. fadein:", "Portamento:"
 	];
-
-	switch (uMsg) {
-	case WM_CREATE:
-		hwndState = hWnd;
-		create_controls(hWnd, &state_template, lParam);
-		closeMidiInDevice();
-		openMidiInDevice(cast(int)midiDevice, &MidiInProc2);
-		break;
-	case WM_ERASEBKGND: {
-		DefWindowProc(hWnd, uMsg, wParam, lParam);
-		hdcState = cast(HDC)wParam;
-		set_up_hdc(hdcState);
-		int i;
-		for (i = 0x01; i <= 0x04; i++) show_state(i, gs[i-0x01]);
-		for (i = 0x21; i <= 0x26; i++) show_state(i, cs1[i-0x21]);
-		for (i = 0x41; i <= 0x46; i++) show_state(i, cs2[i-0x41]);
-		reset_hdc(hdcState);
-		return 1;
-	}
-	case WM_PAINT: {
-		char[11] buf;
-		hdcState = BeginPaint(hWnd, &ps);
-		set_up_hdc(hdcState);
-
-		show_slider_state(0x11, &state.volume);
-		show_slider_state(0x12, &state.tempo);
-		show_simple_state(0x13, state.transpose);
-		show_simple_state(0x14, state.first_CA_inst);
-
-		channel_state *c = &state.chan[cursor_chan];
-		show_slider_state(0x31, &c.volume);
-		show_slider_state(0x32, &c.panning);
-		show_simple_state(0x33, c.transpose);
-		show_simple_state(0x34, c.inst);
-		show_oscillator_state(0x35, c.vibrato_start, c.vibrato_speed, c.vibrato_max_range);
-		show_oscillator_state(0x36, c.tremolo_start, c.tremolo_speed, c.tremolo_range);
-		show_simple_state(0x51, c.note_len);
-		show_simple_state(0x52, c.note_style);
-		show_simple_state(0x53, c.finetune);
-		if (c.sub_count) {
-			sprintf(&buf[0], "%d x%d", c.sub_start, c.sub_count);
-			show_state(0x54, &buf[0]);
-		} else {
-			show_state(0x54, "No");
+	try {
+		switch (uMsg) {
+		case WM_CREATE:
+			hwndState = hWnd;
+			create_controls(hWnd, &state_template, lParam);
+			closeMidiInDevice();
+			openMidiInDevice(cast(int)midiDevice, &MidiInProc2);
+			break;
+		case WM_ERASEBKGND: {
+			DefWindowProc(hWnd, uMsg, wParam, lParam);
+			hdcState = cast(HDC)wParam;
+			set_up_hdc(hdcState);
+			int i;
+			for (i = 0x01; i <= 0x04; i++) show_state(i, gs[i-0x01]);
+			for (i = 0x21; i <= 0x26; i++) show_state(i, cs1[i-0x21]);
+			for (i = 0x41; i <= 0x46; i++) show_state(i, cs2[i-0x41]);
+			reset_hdc(hdcState);
+			return 1;
 		}
-		show_simple_state(0x55, c.vibrato_fadein);
-		if (c.port_length)
-			sprintf(&buf[0], "%02X %02X %02X", c.port_start, c.port_length, c.port_range);
-		else
-			strcpy(&buf[0], "Off");
-		show_state(0x56, &buf[0]);
-		reset_hdc(hdcState);
-		EndPaint(hWnd, &ps);
+		case WM_PAINT: {
+			char[11] buf;
+			hdcState = BeginPaint(hWnd, &ps);
+			set_up_hdc(hdcState);
+
+			show_slider_state(0x11, &state.volume);
+			show_slider_state(0x12, &state.tempo);
+			show_simple_state(0x13, state.transpose);
+			show_simple_state(0x14, state.first_CA_inst);
+
+			channel_state *c = &state.chan[cursor_chan];
+			show_slider_state(0x31, &c.volume);
+			show_slider_state(0x32, &c.panning);
+			show_simple_state(0x33, c.transpose);
+			show_simple_state(0x34, c.inst);
+			show_oscillator_state(0x35, c.vibrato_start, c.vibrato_speed, c.vibrato_max_range);
+			show_oscillator_state(0x36, c.tremolo_start, c.tremolo_speed, c.tremolo_range);
+			show_simple_state(0x51, c.note_len);
+			show_simple_state(0x52, c.note_style);
+			show_simple_state(0x53, c.finetune);
+			if (c.sub_count) {
+				sprintf(&buf[0], "%d x%d", c.sub_start, c.sub_count);
+				show_state(0x54, &buf[0]);
+			} else {
+				show_state(0x54, "No");
+			}
+			show_simple_state(0x55, c.vibrato_fadein);
+			if (c.port_length)
+				sprintf(&buf[0], "%02X %02X %02X", c.port_start, c.port_length, c.port_range);
+			else
+				strcpy(&buf[0], "Off");
+			show_state(0x56, &buf[0]);
+			reset_hdc(hdcState);
+			EndPaint(hWnd, &ps);
+			break;
+		}
+		case WM_DESTROY:
+			closeMidiInDevice();
 		break;
-	}
-	case WM_DESTROY:
-		closeMidiInDevice();
-	break;
-	default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
+		default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
+		}
+	} catch (Exception e) {
+		handleError(e);
 	}
 	return 0;
 }

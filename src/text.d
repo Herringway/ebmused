@@ -1,7 +1,7 @@
 import core.stdc.ctype;
 import core.stdc.stdio;
 import core.stdc.stdlib;
-import core.stdc.string;
+import std.format;
 import std.string;
 import ebmusv2;
 import structs;
@@ -33,7 +33,7 @@ uint calc_track_size_from_text(char *p) {
 			if (*p == ',') strtol(p + 1, &p, 10);
 			size += 4;
 		} else {
-			sprintf(&buf[0], "Bad character: '%c'", c);
+			sformat!"Bad character: '%s'"(buf[], c);
 			throw new EbmusedWarningException(buf.fromStringz.idup, "");
 		}
 	}
@@ -78,7 +78,7 @@ void text_to_track(char *str, track *t, bool is_sub) {
 
 	validate_track(data, size, is_sub);
 
-	if (size != t.size || memcmp(data, t.track, size)) {
+	if (size != t.size || (data[0 .. size] != t.track[0 .. size])) {
 		t.size = size;
 		free(t.track);
 		t.track = data;
@@ -88,7 +88,7 @@ void text_to_track(char *str, track *t, bool is_sub) {
 }
 
 //// includes ending '\0'
-int text_length(ubyte *start, ubyte *end) nothrow {
+int text_length(ubyte *start, ubyte *end) {
 	import std.experimental.logger;
 	int textlength = 0;
 	for (ubyte *p = start; p < end; ) {
@@ -104,7 +104,7 @@ int text_length(ubyte *start, ubyte *end) nothrow {
 			len = 1 + code_length.ptr[byte_ - 0xE0];
 			if (byte_ == 0xEF) {
 				char[12] buf = 0;
-				textlength += sprintf(&buf[0], "*%d,%d ", p[1] | p[2] << 8, p[3]);
+				textlength += sformat!"*%d,%d "(buf[], p[1] | p[2] << 8, p[3]).length;
 			} else {
 				textlength += 3*len + 2;
 			}
