@@ -6,7 +6,7 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 import std.string;
 import std.stdio;
 import ebmusv2;

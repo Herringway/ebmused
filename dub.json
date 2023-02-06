@@ -2,6 +2,9 @@
 	"description": "earthbound music editor",
 	"name": "ebmused",
 	"stringImportPaths": ["resources"],
+	"dependencies": {
+		"nspcplay": "*"
+	},
 	"configurations": [
 		{
 			"name": "win32",

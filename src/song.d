@@ -2,7 +2,7 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.runtime;
-import std.logger;
+import std.experimental.logger;
 import std.range;
 import std.string;
 import ebmusv2;

@@ -2,6 +2,7 @@ import core.stdc.stdlib;
 import structs;
 import play;
 
+import std.algorithm.comparison;
 import std.experimental.logger;
 
 enum {
@@ -12,6 +13,7 @@ enum {
 
 __gshared sample[128] samp;
 
+ushort maxSamplePosition = 0;
 
 ushort sample_ptr_base = 0x6C00;
 
@@ -119,6 +121,7 @@ void decode_samples(const(ubyte)* ptrtable) {
 			continue;
 
 		int end = start + length;
+		maxSamplePosition = max(maxSamplePosition, cast(ushort)end);
 		sa.length = (length / BRR_BLOCK_SIZE) * 16;
 		// The LOOP bit only matters for the last brr block
 		if (spc[start + length - BRR_BLOCK_SIZE] & BRR_FLAG_LOOP) {

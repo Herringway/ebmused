@@ -8,7 +8,7 @@ import core.sys.windows.commctrl;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 import std.string;
 import std.utf;
 import ebmusv2;

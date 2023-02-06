@@ -10,7 +10,8 @@ import core.sys.windows.commctrl;
 import std.algorithm.comparison : min;
 import std.exception;
 import std.format;
-import std.logger;
+import std.experimental.logger;
+import std.stdio;
 import std.string;
 import ebmusv2;
 import misc;
@@ -276,6 +277,63 @@ static void import_spc() {
 
 	fclose(f);
 }
+private T read(T)(const(ubyte)[] data, size_t offset = 0) {
+	return (cast(const(T)[])(data[offset .. offset + T.sizeof]))[0];
+}
+private const(ubyte)[] loadAllSubpacks(scope ubyte[] buffer, const(ubyte)[] pack) @safe {
+	ushort size, base;
+	while (true) {
+		if (pack.length == 0) {
+			break;
+		}
+		size = read!ushort(pack);
+		if (size == 0) {
+			break;
+		}
+		base = read!ushort(pack, 2);
+		if (size + base > 65535) {
+			infof("Loading %s bytes to $%04X will overflow - truncating", size, base);
+		}
+		const truncated = min(65535, base + size) - base;
+		buffer[base .. base + truncated] = pack[4 .. truncated + 4];
+		pack = pack[size + 4 .. $];
+	}
+	return pack[2 .. $];
+}
+void import_nspc() {
+	char *file = open_dialog(&GetOpenFileNameA,
+		cast(char*)"NSPC File (*.nspc)\0*.nspc\0All Files\0*.*\0".ptr,
+		null,
+		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY);
+	if (!file) return;
+	import nspcplay;
+	import std.file : read;
+	auto nspcFile = cast(ubyte[])read(file.fromStringz);
+	ubyte[0x10000] backup_spc = spc;
+	WORD original_sample_ptr_base = sample_ptr_base;
+
+	const header = (cast(NSPCFileHeader[])(nspcFile[0 .. NSPCFileHeader.sizeof]))[0];
+	loadAllSubpacks(spc[], nspcFile[NSPCFileHeader.sizeof .. $]);
+
+	//samples
+	sample_ptr_base = header.sampleBase;
+	free_samples();
+	decode_samples(&spc[sample_ptr_base]);
+
+	//instruments
+	inst_base = header.instrumentBase;
+
+	//song data
+	free_song(&cur_song);
+	decompile_song(&cur_song, header.songBase, 0xFFFF);
+
+	initialize_state();
+	SendMessage(tab_hwnd[current_tab], WM_SONG_IMPORTED, 0, 0);
+	scope(failure) {
+		spc = backup_spc;
+		sample_ptr_base = original_sample_ptr_base;
+	}
+}
 
 void export_() nothrow {
 	block *b = save_cur_song_to_pack();
@@ -349,6 +407,36 @@ static void export_spc() nothrow {
 			}
 		}
 	}
+}
+static void export_nspc() {
+	if (cur_song.order_length < 1) {
+		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
+		return;
+	}
+	char[] filename = open_dialog(&GetSaveFileNameA, cast(char*)"NSPC files (*.nspc)\0*.nspc\0".ptr, cast(char*)"nspc".ptr, OFN_OVERWRITEPROMPT).fromStringz;
+	if (!filename) {
+		return;
+	}
+	import nspcplay;
+
+	auto file = File(filename, "wb").lockingBinaryWriter;
+	NSPCWriter writer;
+	writer.header.songBase = cur_song.address;
+	writer.header.instrumentBase = cast(ushort)inst_base;
+	writer.header.sampleBase = sample_ptr_base;
+	writer.header.volumeTable = VolumeTable.hal1;
+	writer.header.releaseTable = ReleaseTable.hal1;
+	// instruments
+	writer.packs ~= Pack(cast(ushort)inst_base, spc[inst_base .. inst_base + 4 * 128]);
+	// samples
+	writer.packs ~= Pack(cast(ushort)sample_ptr_base, spc[sample_ptr_base .. maxSamplePosition + 1]);
+	// song
+	block *b = save_cur_song_to_pack();
+	const buf = b.data[0 .. b.size];
+
+	writer.packs ~= Pack(cast(ushort)b.spc_address, buf);
+	//writer.tags[] = ;
+	writer.toBytes(file);
 }
 
 BOOL save_all_packs() nothrow {

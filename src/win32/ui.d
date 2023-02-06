@@ -28,7 +28,7 @@ import play;
 import structs;
 
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 import std.string;
 
 version(win32):
@@ -141,8 +141,10 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			break;
 		case ID_IMPORT: import_(); break;
 		case ID_IMPORT_SPC: handleErrorsUI(import_spc()); break;
+		case ID_IMPORT_NSPC: handleErrorsUI(import_nspc()); break;
 		case ID_EXPORT: export_(); break;
 		case ID_EXPORT_SPC: export_spc(); break;
+		case ID_EXPORT_NSPC: handleErrorsUI(export_nspc()); break;
 		case ID_EXIT: DestroyWindow(hWnd); break;
 		case ID_OPTIONS: {
 			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_OPTIONS), hWnd, &OptionsDlgProc);
@@ -228,7 +230,11 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
 	import core.runtime;
 	import std.experimental.logger;
 	Runtime.initialize();
-	sharedLog = cast(shared)new FileLogger("trace.log");
+	static if (!is(typeof(cast(shared)sharedLog) == typeof(sharedLog))) {
+		sharedLog = new FileLogger("trace.log");
+	} else {
+		sharedLog = cast(shared)(new FileLogger("trace.log"));
+	}
 	hinstance = hInstance;
 	WNDCLASSW wc;
 	MSG msg;

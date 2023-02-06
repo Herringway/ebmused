@@ -7,6 +7,8 @@
 #define ID_IMPORT_SPC 104
 #define ID_EXPORT 105
 #define ID_EXPORT_SPC 106
+#define ID_IMPORT_NSPC 108
+#define ID_EXPORT_NSPC 109
 #define ID_EXIT 107
 #define ID_UNDO 110
 #define ID_CUT 111

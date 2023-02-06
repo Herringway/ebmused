@@ -1,7 +1,7 @@
 module win32.fonts;
 
 import std.exception;
-import std.logger;
+import std.experimental.logger;
 
 import core.stdc.stdio;
 import core.sys.windows.windows;
