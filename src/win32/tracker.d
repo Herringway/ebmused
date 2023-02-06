@@ -47,7 +47,7 @@ enum IDC_EDITBOX_CAPTION = 17;
 enum IDC_EDITBOX = 18;
 enum IDC_ENABLE_CHANNEL_0 = 20;
 
-immutable control_desc[16] editor_controls = [
+immutable control_desc[15] editor_controls = [
 // Upper
 	{ "Static",          10, 13, 42, 20, "Patterns:", 0, 0 }, //"Order" label
 	{ "ebmused_order",   56, 10,-420,20, null, IDC_ORDER, WS_BORDER }, //Pattern order list
@@ -67,14 +67,14 @@ immutable control_desc[16] editor_controls = [
 	{ "Edit",           450,15,-460,-25, null, IDC_EDITBOX, WS_BORDER | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL },
 ];
 private window_template editor_template = {
-	15, 3, 0, 0, &editor_controls[0]
+	editor_controls.length, 3, 0, 0, editor_controls[]
 };
 
 immutable control_desc[2] state_controls = [
 	{ "Button",           0,  0,150,  0, "Global state", 0, BS_GROUPBOX },
 	{ "Button",         160,  0,270,  0, cs_title, IDC_CHANSTATE_CAPTION, BS_GROUPBOX },
 ];
-__gshared private window_template state_template = { 2, 2, 0, 0, &state_controls[0] };
+__gshared private window_template state_template = { 2, 2, 0, 0, state_controls[] };
 
 __gshared private int pos_width, font_height;
 private immutable ubyte[12] zoom_levels = [ 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 96 ];

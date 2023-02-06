@@ -1,20 +1,28 @@
 module win32.ctrltbl;
 
 import core.sys.windows.windows;
+import std.string;
 import ebmusv2;
 import win32.fonts;
 import win32.handles;
 import win32.misc;
 
 struct control_desc {
-	immutable(char)* class_; short x, y, xsize, ysize; immutable(char)* title; DWORD id; DWORD style;
+	string class_;
+	short x;
+	short y;
+	short xsize;
+	short ysize;
+	string title;
+	DWORD id;
+	DWORD style;
 }
 struct window_template {
 	int num;
 	int lower;
 	ptrdiff_t winsize;
 	int divy;
-	const(control_desc) *controls;
+	const(control_desc)[] controls;
 }
 
 void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
@@ -23,9 +31,11 @@ void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
 	t.winsize = MAKELONG(width, winheight);
 	int top = 0;
 	int height = t.divy;
-	control_desc *c = cast(control_desc*)t.controls;
 
-	for (int num = t.num; num; num--, c++) {
+	foreach (num, c; t.controls) {
+		import std.logger;
+		import std.exception;
+		assumeWontThrow(infof("Creating control %s", c));
 		int x = scale_x(c.x);
 		int y = scale_y(c.y);
 		int xsize = scale_x(c.xsize);
@@ -38,7 +48,7 @@ void create_controls(HWND hWnd, window_template *t, LPARAM cs) nothrow {
 		if (y < 0) y += height;
 		if (xsize <= 0) xsize += width;
 		if (ysize <= 0) ysize += height;
-		HWND w = CreateWindowA(c.class_, c.title,
+		HWND w = CreateWindowA(c.class_.toStringz, c.title.toStringz,
 			WS_CHILD | WS_VISIBLE | c.style,
 			x, top + y, xsize, ysize,
 			hWnd, cast(HMENU)c.id, hinstance, NULL);

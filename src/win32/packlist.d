@@ -81,7 +81,7 @@ static const control_desc[22] pack_list_controls = [
 
 ];
 
-static window_template pack_list_template = window_template(22, 14, 0, 0, &pack_list_controls[0]);
+static window_template pack_list_template = window_template(pack_list_controls.length, 14, 0, 0, pack_list_controls[]);
 
 static void show_blocks(HWND packlist, pack *p, LV_ITEMA *lvi) {
 	char[MAX_TITLE_LEN+5] buf;

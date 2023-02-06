@@ -23,6 +23,11 @@ enum WM_SONG_LOADED = WM_USER+3;
 enum WM_SONG_NOT_LOADED = WM_USER+4;
 enum WM_PACKS_SAVED = WM_USER+5;
 
+struct ListHeader {
+	string label;
+	int width;
+}
+
 void enable_menu_items(const(ubyte)* list, int flags) nothrow {
 	while (*list) EnableMenuItem(hmenu, *list++, flags);
 }

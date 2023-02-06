@@ -3,12 +3,7 @@ import core.stdc.stdlib;
 import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
-import std.exception;
-import std.logger;
-import std.string;
 import std.stdio;
-import ebmusv2;
-import main;
 
 int fgetw(FILE *f) nothrow {
 	int lo, hi;

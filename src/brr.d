@@ -1,6 +1,3 @@
-import core.stdc.stddef;
-import core.stdc.stdint;
-import core.stdc.stdio;
 import core.stdc.stdlib;
 import structs;
 import play;
@@ -22,9 +19,9 @@ ushort sample_ptr_base = 0x6C00;
 // This makes no attempt to simulate the behavior of the SPC on key on. It ignores the header of a
 // block on key on. That would complicate decoding, because you could have a loop that results in a
 // sample that ends, or that has a second loop point, and... no one does that. Right?
-private int32_t sample_length(const uint8_t *spc_memory, uint16_t start) {
-	int32_t end = start;
-	uint8_t b;
+private int sample_length(const ubyte *spc_memory, ushort start) {
+	int end = start;
+	ubyte b;
 	do {
 		b = spc_memory[end];
 		end += BRR_BLOCK_SIZE;
@@ -36,7 +33,7 @@ private int32_t sample_length(const uint8_t *spc_memory, uint16_t start) {
 		return -1;
 }
 
-static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_block) {
+static void decode_brr_block(short *buffer, const ubyte *block, bool first_block) {
 	int range = block[0] >> 4;
 	int filter = (block[0] >> 2) & 3;
 
@@ -48,7 +45,7 @@ static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_b
 	}
 
 	for (int i = 2; i < 18; i++) {
-		int32_t s = block[i / 2];
+		int s = block[i / 2];
 
 		if (i % 2 == 0) {
 			s >>= 4;
@@ -86,7 +83,7 @@ static void decode_brr_block(int16_t *buffer, const uint8_t *block, bool first_b
 	}
 }
 
-static int get_full_loop_len(const sample *sa, const int16_t *next_block, int first_loop_start) {
+static int get_full_loop_len(const sample *sa, const short *next_block, int first_loop_start) {
 	int loop_start = sa.length - sa.loop_len;
 	int no_match_found = true;
 	while (loop_start >= first_loop_start && no_match_found) {
@@ -131,9 +128,9 @@ void decode_samples(const(ubyte)* ptrtable) {
 		} else
 			sa.loop_len = 0;
 
-		size_t allocation_size = int16_t.sizeof * (sa.length + 1);
+		size_t allocation_size = short.sizeof * (sa.length + 1);
 
-		int16_t *p = cast(int16_t*)malloc(allocation_size);
+		short *p = cast(short*)malloc(allocation_size);
 		if (!p) {
 			debug tracef("malloc failed in BRR decoding (sn: %02X)\n", sn);
 			continue;
@@ -160,7 +157,7 @@ void decode_samples(const(ubyte)* ptrtable) {
 			if (sa.loop_len != 0) {
 				decoding_start = loop;
 
-				int16_t[18] after_loop;
+				short[18] after_loop;
 				after_loop[0] = p[-2];
 				after_loop[1] = p[-1];
 
@@ -173,7 +170,7 @@ void decode_samples(const(ubyte)* ptrtable) {
 					//	sa.data[sa.length - sa.loop_len],
 					//	sa.data[sa.length - sa.loop_len + 1]);
 					ptrdiff_t diff = p - sa.data;
-					int16_t *new_stuff = cast(int16_t*)realloc(sa.data, (sa.length + sa.loop_len + 1) * int16_t.sizeof);
+					short *new_stuff = cast(short*)realloc(sa.data, (sa.length + sa.loop_len + 1) * short.sizeof);
 					if (new_stuff == null) {
 						debug tracef("realloc failed in BRR decoding (sn: %02X)\n", sn);
 						// TODO What do we do now? Replace this with something better

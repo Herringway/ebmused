@@ -4,8 +4,13 @@ import std.algorithm.comparison : max, min;
 import std.experimental.logger;
 import core.stdc.stdio;
 import core.stdc.string;
+import core.sys.windows.commctrl;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
+import std.exception;
+import std.logger;
+import std.string;
+import std.utf;
 import ebmusv2;
 import win32.ctrltbl;
 import main;
@@ -24,21 +29,16 @@ enum IDC_INSTLIST_CAPTION = 3;
 enum IDC_INSTLIST = 4;
 enum IDC_MIDIINCOMBO = 5;
 
-enum inst_list_template_num = 10;
-enum inst_list_template_lower = 10;
-
 __gshared private HWND samplist, instlist, insttest;
 __gshared private int prev_chmask;
 __gshared private ptrdiff_t selectedInstrument = 0;
 
-private immutable control_desc[10] inst_list_controls = [
+private immutable control_desc[] inst_list_controls = [
 	{ "Static",  10, 10,100, 20, "Sample Directory:", 0, 0 },
-	{ "Static",  13, 30,180, 20, "    Strt Loop Size", 1, 0 },
-	{ "ListBox", 10, 50,180,-60, null, 2, WS_BORDER | WS_VSCROLL }, //Sample Directory ListBox
+	{ WC_LISTVIEW,10, 30,180,-60, null, IDC_SAMPLIST, WS_BORDER | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS  }, //Sample Directory ListBox
 
 	{ "Static", 200, 10,100, 20, "Instrument Config:", 0, 0 },
-	{ "Static", 203, 30,160, 20, "S#  ADSR/Gain Tuning", 3, 0 },
-	{ "ListBox",200, 50,180,-60, null, 4, WS_BORDER | WS_VSCROLL }, //Instrument Config ListBox
+	{ WC_LISTVIEW,200, 30,180,-60, null, IDC_INSTLIST, WS_BORDER | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS  }, //Instrument Config ListBox
 
 	{ "Static", 400, 10,100, 20, "Instrument test:", 0, 0},
 	{ "ebmused_insttest",400, 30,140,260, null, 3, 0 },
@@ -46,7 +46,7 @@ private immutable control_desc[10] inst_list_controls = [
 	{ "ComboBox", 400, 320, 140, 200, null, IDC_MIDIINCOMBO, CBS_DROPDOWNLIST | WS_VSCROLL },
 ];
 __gshared private window_template inst_list_template = {
-	inst_list_template_num, inst_list_template_lower, 0, 0, &inst_list_controls[0]
+	inst_list_controls.length, inst_list_controls.length, 0, 0, inst_list_controls
 };
 
 __gshared private ubyte[64] valid_insts;
@@ -87,7 +87,7 @@ static void note_off(int note) nothrow {
 }
 
 static void note_on(int note, int velocity) nothrow {
-	ptrdiff_t sel = SendMessageA(instlist, LB_GETCURSEL, 0, 0);
+	ptrdiff_t sel = assumeWontThrow(ListView_GetSelectionMark(instlist));
 	if (sel < 0) return;
 	int inst = valid_insts[sel];
 
@@ -186,17 +186,25 @@ extern(Windows) LRESULT InstTestWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 	return 0;
 }
 
+immutable sampleDirectoryHeaders = [
+	ListHeader("#", 30),
+	ListHeader("Start", 40),
+	ListHeader("Loop", 40),
+	ListHeader("Size", 40),
+];
+
+immutable instrumentConfigHeaders = [
+	ListHeader("S#", 30),
+	ListHeader("ADSR/Gain", 80),
+	ListHeader("Tuning", 45),
+];
+
 extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE: {
 		prev_chmask = chmask;
 		WPARAM fixed = cast(WPARAM)fixed_font();
 		static char[40] buf;
-
-		// HACK: For some reason when the compiler has optimization turned on, it doesn't initialize the values of inst_list_template correctly. So we'll reset them here. . .
-		// NOTE: This may be due to a sprintf overflowing, as was the case with bgm_list_template when compiling in Visual Studio 2015
-		inst_list_template.num = inst_list_template_num;
-		inst_list_template.lower = inst_list_template_lower;
 
 		create_controls(hWnd, &inst_list_template, lParam);
 
@@ -206,6 +214,19 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		SendDlgItemMessageA(hWnd, IDC_INSTLIST_CAPTION, WM_SETFONT, fixed, 0);
 		instlist = GetDlgItem(hWnd, IDC_INSTLIST);
 		SendMessageA(instlist, WM_SETFONT, fixed, 0);
+		assumeWontThrow(ListView_SetExtendedListViewStyle(instlist, LVS_EX_FULLROWSELECT));
+		LVCOLUMNA lvc;
+		lvc.mask = LVCF_TEXT | LVCF_WIDTH;
+		foreach (idx, header; sampleDirectoryHeaders) {
+			lvc.pszText = cast(char*)header.label.toStringz;
+			lvc.cx = scale_x(header.width);
+			ListView_InsertColumnA(samplist, cast(uint)idx, &lvc);
+		}
+		foreach (idx, header; instrumentConfigHeaders) {
+			lvc.pszText = cast(char*)header.label.toStringz;
+			lvc.cx = scale_x(header.width);
+			ListView_InsertColumnA(instlist, cast(uint)idx, &lvc);
+		}
 
 		// Insert a custom window procedure on the instrument list, so we
 		// can see WM_KEYDOWN and WM_KEYUP messages for instrument testing.
@@ -213,22 +234,58 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		ListBoxWndProc = cast(WNDPROC)SetWindowLongPtrA(instlist, GWLP_WNDPROC,
 			cast(LONG_PTR)&InstListWndProc);
 
+		LV_ITEMA lvi;
+		lvi.iItem = assumeWontThrow(ListView_GetItemCount(samplist));
 		for (int i = 0; i < 128; i++) { //filling out the Sample Directory ListBox
 			if (samp[i].data == null) continue;
 			ushort *ptr = cast(ushort *)&spc[0x6C00 + 4*i];
-			sprintf(&buf[0], "%02X: %04X %04X %4d", i,
-				ptr[0], ptr[1], samp[i].length >> 4);
-			SendMessageA(samplist, LB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
+			lvi.mask = LVIF_TEXT | LVIF_PARAM;
+			lvi.lParam = i;
+			sprintf(&buf[0], "%02X", i);
+			lvi.pszText = &buf[0];
+			lvi.iSubItem = 0;
+			ListView_InsertItemA(samplist, &lvi);
+
+			lvi.mask = LVIF_TEXT;
+			lvi.iSubItem = 1;
+			sprintf(&buf[0], "%04X", ptr[0]);
+			ListView_SetItemA(samplist, &lvi);
+
+			lvi.iSubItem = 2;
+			sprintf(&buf[0], "%04X", ptr[1]);
+			ListView_SetItemA(samplist, &lvi);
+
+			lvi.iSubItem = 3;
+			sprintf(&buf[0], "%4d", samp[i].length >> 4);
+			ListView_SetItemA(samplist, &lvi);
+
+			lvi.iItem++;
 		}
 
 		ubyte *p = &valid_insts[0];
+		lvi.iItem = assumeWontThrow(ListView_GetItemCount(instlist));
 		for (int i = 0; i < 64; i++) { //filling out the Instrument Config ListBox
 			ubyte *inst = &spc[inst_base + i*6];
 			if (inst[4] == 0 && inst[5] == 0) continue;
 			//            Index ADSR            Tuning
-			sprintf(&buf[0], "%02X: %02X %02X %02X  %02X%02X",
-				inst[0], inst[1], inst[2], inst[3], inst[4], inst[5]);
-			SendMessageA(instlist, LB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
+
+			lvi.mask = LVIF_TEXT | LVIF_PARAM;
+			lvi.lParam = i;
+			assumeWontThrow(sformat!"%02X\0"(buf[], inst[0]));
+			lvi.pszText = &buf[0];
+			lvi.iSubItem = 0;
+			ListView_InsertItemA(instlist, &lvi);
+
+			lvi.mask = LVIF_TEXT;
+			lvi.iSubItem = 1;
+			assumeWontThrow(sformat!"%02X %02X %02X\0"(buf[], inst[1], inst[2], inst[3]));
+			ListView_SetItemA(instlist, &lvi);
+
+			lvi.iSubItem = 2;
+			assumeWontThrow(sformat!"%02X%02X\0"(buf[], inst[4], inst[5]));
+			ListView_SetItemA(instlist, &lvi);
+
+			lvi.iItem++;
 			*p++ = cast(ubyte)i;
 		}
 		if (sound_init())
@@ -280,7 +337,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		break;
 	}
 	case WM_ROM_CLOSED:
-		SendMessageA(samplist, LB_RESETCONTENT, 0, 0);
+		assumeWontThrow(ListView_DeleteAllItems(samplist));
 		SendMessageA(instlist, LB_RESETCONTENT, 0, 0);
 		break;
 	case WM_SIZE:

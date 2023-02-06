@@ -82,11 +82,7 @@ immutable control_desc[27] bgm_list_controls = [
 	control_desc("Edit",   320,275,230, 20, NULL, IDC_TITLE, WS_BORDER | ES_AUTOHSCROLL ),
 	control_desc("Button", 560,275, 60, 20, "Rename", IDC_TITLE_CHANGE, 0 ),
 ];
-__gshared window_template bgm_list_template = window_template(
-	bgm_list_controls.sizeof / (bgm_list_controls[0]).sizeof,
-	bgm_list_controls.sizeof / (bgm_list_controls[0]).sizeof,
-	0, 0, bgm_list_controls.ptr
-);
+__gshared window_template bgm_list_template = { bgm_list_controls.length, bgm_list_controls.length, 0, 0, bgm_list_controls[] };
 
 private void set_bgm_info(ubyte *packs_used, int spc_addr) nothrow {
 	for (int i = 0; i < 3; i++)
