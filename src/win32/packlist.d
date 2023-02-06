@@ -6,6 +6,7 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.commctrl;
 import std.format;
+import std.experimental.logger;
 import ebmusv2;
 import structs;
 import win32.ctrltbl;
@@ -416,7 +417,7 @@ extern(Windows) LRESULT PackListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 		} else if (code == LVN_ITEMCHANGED) {
 			if (hwnd == inmem_list && nm.uNewState & LVIS_SELECTED) {
 				inmem_sel = nm.lParam;
-				printf("Selected %x\n", inmem_sel);
+				infof("Selected %x\n", inmem_sel);
 				for (int i = 30; i <= 46; i++) {
 					EnableWindow(GetDlgItem(hWnd, i), TRUE);
 				}

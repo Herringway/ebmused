@@ -153,7 +153,7 @@ void set_inst(song_state *st, channel_state *c, int inst) nothrow {
 	if (inst < 0 || inst >= 64 || !samp[idata[0]].data ||
 		(idata[4] == 0 && idata[5] == 0))
 	{
-		printf("ch %d: bad inst %X\n", c - &st.chan[0], inst);
+		assumeWontThrow(infof("ch %d: bad inst %X\n", c - &st.chan[0], inst));
 		return;
 	}
 

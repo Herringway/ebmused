@@ -235,7 +235,7 @@ extern(Windows) LRESULT BGMListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
 		case IDC_TITLE_CHANGE: {
 			GetDlgItemTextA(hWnd, IDC_TITLE, &buf[4], MAX_TITLE_LEN+1);
 			bgm_title[selected_bgm] = (&buf[4]).fromStringz.idup;
-			sprintf(&buf[0], "%02X:", selected_bgm + 1);
+			assumeWontThrow(sformat!"%02X:"(buf[], selected_bgm + 1));
 			buf[3] = ' ';
 			SendDlgItemMessageA(hWnd, IDC_LIST, LB_DELETESTRING, selected_bgm, 0);
 			SendDlgItemMessageA(hWnd, IDC_LIST, LB_INSERTSTRING, selected_bgm, cast(LPARAM)&buf[0]);
