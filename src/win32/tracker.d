@@ -1,6 +1,7 @@
 module win32.tracker;
 
 import std.algorithm.comparison : max, min;
+import std.format;
 import core.stdc.stdio;
 import core.stdc.stdlib;
 import core.stdc.string;
@@ -333,8 +334,8 @@ private void goto_order(int pos) {
 }
 
 private void pattern_added() {
-	char[12] buf;
-	sprintf(&buf[0], "%d", cur_song.patterns - 1);
+	char[12] buf = 0;
+	sformat!"%d\0"(buf[], cur_song.patterns - 1);
 	SendDlgItemMessage(hwndEditor, IDC_PAT_LIST, CB_ADDSTRING,
 		0, cast(LPARAM)&buf[0]);
 }
@@ -387,8 +388,8 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			HWND cb = GetDlgItem(hWnd, IDC_PAT_LIST);
 			SendMessage(cb, CB_RESETCONTENT, 0, 0);
 			for (int i = 0; i < cur_song.patterns; i++) {
-				char[11] buf;
-				sprintf(&buf[0], "%d", i);
+				char[11] buf = 0;
+				sformat!"%d\0"(buf[], i);
 				SendMessage(cb, CB_ADDSTRING, 0, cast(LPARAM)&buf[0]);
 			}
 			load_pattern_into_tracker();
