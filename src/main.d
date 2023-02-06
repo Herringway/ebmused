@@ -224,8 +224,7 @@ static void import_spc() {
 
 	// Backup the currently loaded SPC in case we need to restore it upon an error.
 	// This can be updated once methods like decode_samples don't rely on the global "spc" variable.
-	BYTE[0x10000] backup_spc;
-	memcpy(&backup_spc[0], &spc[0], 0x10000);
+	BYTE[0x10000] backup_spc = spc;
 	WORD original_sample_ptr_base = sample_ptr_base;
 
 	BYTE[0x80] dsp;
@@ -258,7 +257,7 @@ static void import_spc() {
 			SendMessage(tab_hwnd[current_tab], WM_SONG_IMPORTED, 0, 0);
 		} else {
 			// Restore SPC state and samples
-			memcpy(&spc[0], &backup_spc[0], 0x10000);
+			spc = backup_spc;
 			sample_ptr_base = original_sample_ptr_base;
 			free_samples();
 			decode_samples(&spc[sample_ptr_base]);
@@ -267,7 +266,7 @@ static void import_spc() {
 		}
 	} else {
 		// Restore SPC state
-		memcpy(&spc[0], &backup_spc[0], 0x10000);
+		spc = backup_spc;
 
 		if (feof(f))
 			MessageBox2("End-of-file reached while reading the SPC file", "Import", MB_ICONEXCLAMATION);
