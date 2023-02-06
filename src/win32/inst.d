@@ -236,7 +236,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 		LV_ITEMA lvi;
 		lvi.iItem = assumeWontThrow(ListView_GetItemCount(samplist));
-		for (int i = 0; i < 128; i++) { //filling out the Sample Directory ListBox
+		for (int i = 0; i < samp.length; i++) { //filling out the Sample Directory ListBox
 			if (samp[i].data == null) continue;
 			lvi.mask = LVIF_TEXT | LVIF_PARAM;
 			lvi.lParam = i;
@@ -263,7 +263,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 		ubyte *p = &valid_insts[0];
 		lvi.iItem = assumeWontThrow(ListView_GetItemCount(instlist));
-		for (int i = 0; i < 64; i++) { //filling out the Instrument Config ListBox
+		for (int i = 0; i < instruments.length; i++) { //filling out the Instrument Config ListBox
 			const instrument = instruments[i];
 			if (instrument.tuning == 0) continue;
 			//            Index ADSR            Tuning
