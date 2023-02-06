@@ -196,7 +196,7 @@ immutable sampleDirectoryHeaders = [
 immutable instrumentConfigHeaders = [
 	ListHeader("S#", 30),
 	ListHeader("ADSR/Gain", 80),
-	ListHeader("Tuning", 45),
+	ListHeader("Tuning", 50),
 ];
 
 extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
