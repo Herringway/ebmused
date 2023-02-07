@@ -2,7 +2,6 @@ module win32.ctrltbl;
 
 import core.sys.windows.windows;
 import std.string;
-import ebmusv2;
 import win32.fonts;
 import win32.handles;
 import win32.misc;

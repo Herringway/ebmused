@@ -1,7 +1,6 @@
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import std.string;
-import ebmusv2;
 import win32.misc;
 
 __gshared HMIDIIN hMidiIn = NULL;

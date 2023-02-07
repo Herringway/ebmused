@@ -1,6 +1,7 @@
 module win32.tracker;
 
 import std.algorithm.comparison : max, min;
+import std.experimental.logger;
 import std.format;
 import core.stdc.stdio;
 import core.stdc.stdlib;
@@ -8,7 +9,6 @@ import core.stdc.string;
 import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import win32.id;
-import ebmusv2;
 import structs;
 import win32.ctrltbl;
 import main;
@@ -21,7 +21,6 @@ import win32.fonts;
 import win32.misc;
 import songed;
 import song;
-import packs;
 import midi;
 import win32.inst;
 
@@ -30,7 +29,9 @@ __gshared private HWND hwndOrder;
 __gshared private HWND hwndState;
 
 enum IDC_CHANSTATE_CAPTION = 1; // child of hwndState
-private immutable char[17] cs_title = "Channel state (0)";
+private immutable string cs_title = "Channel state (%s)";
+private enum defaultStateText = format!cs_title("?");
+
 
 enum IDC_ORDER = 1;
 enum IDC_REP_CAPTION = 2;
@@ -73,7 +74,7 @@ private window_template editor_template = {
 
 immutable control_desc[2] state_controls = [
 	{ "Button",           0,  0,150,  0, "Global state", 0, BS_GROUPBOX },
-	{ "Button",         160,  0,270,  0, cs_title, IDC_CHANSTATE_CAPTION, BS_GROUPBOX },
+	{ "Button",         160,  0,270,  0, defaultStateText, IDC_CHANSTATE_CAPTION, BS_GROUPBOX },
 ];
 __gshared private window_template state_template = { 2, 2, 0, 0, state_controls[] };
 
@@ -150,18 +151,18 @@ private void get_sel_range() {
 }
 
 private void show_track_text() {
-	char *txt = null;
 	track *t = cursor_track;
+	char[] txt;
 	if (t.size) {
-		txt = cast(char*)malloc(text_length(t.track, t.track + t.size));
+		txt = new char[](text_length(t.track, t.track + t.size));
 		track_to_text(txt, t.track, t.size);
 	}
-	SetDlgItemTextA(hwndEditor, IDC_EDITBOX, txt);
-	free(txt);
+	setDlgItemText(hwndEditor, IDC_EDITBOX, (txt.length == 0) ? "" : txt);
 }
 
 private void cursor_moved(bool select) {
-	char[23] caption;
+	char[23] caption = 0;
+	char[] used;
 	track *t;
 
 	if (!cur_song.order_length) return;
@@ -175,17 +176,15 @@ private void cursor_moved(bool select) {
 
 	if (cursor.sub_count) {
 		t = &cur_song.sub[cursor.sub_start];
-		sprintf(&caption[0], "Subroutine %d", cursor.sub_start);
+		used = sformat!"Subroutine %d"(caption[], cursor.sub_start);
 	} else {
 		int ch = cursor_chan;
 		t = &cur_song.pattern[cur_song.order[state.ordnum]][ch];
-		sprintf(&caption[0], "Track %d", ch);
-		if (cursor.ptr == null)
-			strcat(&caption[0], " (not present)");
+		used = sformat!"Track %d%s"(caption[], ch, (cursor.ptr !is null) ? "" : " (not present)");
 	}
-	printf("t = %p\n", t);
+	infof("t = %s", t);
 	if (t != cursor_track) {
-		SetDlgItemTextA(hwndEditor, IDC_EDITBOX_CAPTION, &caption[0]);
+		setDlgItemText(hwndEditor, IDC_EDITBOX_CAPTION, used);
 		cursor_track = t;
 		show_track_text();
 	}
@@ -202,10 +201,9 @@ private void cursor_moved(bool select) {
 }
 
 private void set_cur_chan(int ch) {
-	char[17] titleCopy = cs_title;
+	char[17] titleCopy = 0;
 	cursor_chan = ch;
-	titleCopy[15] = cast(char)('0' + ch);
-	SetDlgItemTextA(hwndState, IDC_CHANSTATE_CAPTION, &titleCopy[0]);
+	setDlgItemText(hwndState, IDC_CHANSTATE_CAPTION, sformat!cs_title(titleCopy, ch));
 	InvalidateRect(hwndState, null, false);
 }
 
@@ -260,7 +258,7 @@ private void restore_cursor(track *t, int offset) {
 	cursor_moved(false);
 }
 
-extern(Windows) ptrdiff_t TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+ptrdiff_t TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		// need to return true to set default focus
@@ -278,7 +276,7 @@ extern(Windows) ptrdiff_t TransposeDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 __gshared private WNDPROC EditWndProc;
 // Custom window procedure for the track/subroutine Edit control
-extern(Windows) private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+private LRESULT TrackEditWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_SETFOCUS) {
 		editbox_had_focus = true;
 	} else if (uMsg == WM_KEYDOWN && wParam == VK_ESCAPE) {
@@ -350,7 +348,7 @@ private void show_repeat() {
 	SetDlgItemInt(hwndEditor, IDC_REPEAT_POS, cur_song.repeat_pos, false);
 }
 
-extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	static const ubyte[21] editor_menu_cmds = [
 		ID_CUT, ID_COPY, ID_PASTE, ID_DELETE,
 		ID_SPLIT_PATTERN, ID_JOIN_PATTERNS,
@@ -378,7 +376,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 				// This font was set up earlier by the ebmused_order control
 				SendMessage(b, WM_SETFONT, cast(size_t)order_font(), 0);
 			}
-			EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&TrackEditWndProc);
+			EditWndProc = cast(WNDPROC)SetWindowLongPtr(GetDlgItem(hWnd, IDC_EDITBOX), GWLP_WNDPROC, cast(LONG_PTR)&wrappedWindowsCallback!TrackEditWndProc);
 			break;
 		case WM_SONG_IMPORTED:
 		case WM_SONG_LOADED:
@@ -400,7 +398,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
 			break;
 		case WM_DESTROY:
-			save_cur_song_to_pack();
+			//save_cur_song_to_pack();
 			enable_menu_items(&editor_menu_cmds[0], MF_GRAYED);
 			break;
 		case WM_COMMAND:
@@ -468,7 +466,7 @@ extern(Windows) LRESULT EditorWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 	return 0;
 }
 
-extern(Windows) LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT OrderWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	try {
 		switch (uMsg) {
 		case WM_CREATE:
@@ -942,8 +940,10 @@ private bool copy_sel() {
 	}
 	if (!OpenClipboard(hwndMain)) return false;
 	EmptyClipboard();
-	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, text_length(start, end));
-	track_to_text(cast(char*)GlobalLock(hglb), start, cast(int)(end - start));
+	const len = text_length(start, end);
+	HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, len);
+	auto buf = (cast(char*)GlobalLock(hglb))[0 .. len];
+	track_to_text(buf, start, cast(int)(end - start));
 	GlobalUnlock(hglb);
 	SetClipboardData(CF_TEXT, hglb);
 	CloseClipboard();
@@ -1190,7 +1190,7 @@ void editor_command(int id) {
 	}
 	case ID_TRANSPOSE: {
 		ptrdiff_t delta = DialogBox(hinstance, MAKEINTRESOURCE(IDD_TRANSPOSE),
-			hwndMain, &TransposeDlgProc);
+			hwndMain, &wrappedWindowsCallback!TransposeDlgProc);
 		if (delta == 0) break;
 		for (ubyte *p = sel_start; p < sel_end; p = next_code(p)) {
 			int note = *p - 0x80;
@@ -1293,7 +1293,7 @@ private void tracker_keydown(WPARAM wParam) {
 		DWORD start;
 		SendMessage(ed, EM_GETSEL, cast(WPARAM)&start, 0);
 		SendMessage(ed, EM_SETSEL, start, start);
-		SendMessage(ed, EM_REPLACESEL, 0, cast(LPARAM)"[ ".ptr);
+		SendMessage(ed, EM_REPLACESEL, 0, cast(LPARAM)"[ "w.ptr);
 		SendMessage(ed, EM_SETSEL, start+1, start+1);
 		SetFocus(ed);
 		break;
@@ -1359,7 +1359,7 @@ private void tracker_keydown(WPARAM wParam) {
 	}
 }
 
-extern(Windows) LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT TrackerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	try {
 		switch (uMsg) {
 		case WM_CREATE: hwndTracker = hWnd; break;
@@ -1451,7 +1451,7 @@ private void show_oscillator_state(int pos, ubyte start, ubyte speed, ubyte rang
 	show_state(pos, &buf[0]);
 }
 
-extern(Windows) private void MidiInProc2(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) nothrow {
+private void MidiInProc2(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) nothrow {
 	try {
 		if (wMsg == MIM_DATA)
 		{
@@ -1478,7 +1478,7 @@ extern(Windows) private void MidiInProc2(HMIDIIN handle, UINT wMsg, DWORD_PTR dw
 	}
 }
 
-extern(Windows) LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	static immutable char*[4] gs = [
 		"Volume:", "Tempo:", "Transpose:", "CA inst.:"
 	];
@@ -1496,7 +1496,7 @@ extern(Windows) LRESULT StateWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 			hwndState = hWnd;
 			create_controls(hWnd, &state_template, lParam);
 			closeMidiInDevice();
-			openMidiInDevice(cast(int)midiDevice, &MidiInProc2);
+			openMidiInDevice(cast(int)midiDevice, &wrappedWindowsCallback!MidiInProc2);
 			break;
 		case WM_ERASEBKGND: {
 			DefWindowProc(hWnd, uMsg, wParam, lParam);

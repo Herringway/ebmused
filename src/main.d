@@ -7,24 +7,19 @@ import core.sys.windows.windows;
 import core.sys.windows.commdlg;
 import core.sys.windows.commctrl;
 
-import std.algorithm.comparison : min;
+import std.algorithm.comparison : max, min;
 import std.exception;
 import std.format;
 import std.experimental.logger;
 import std.stdio;
 import std.string;
 import std.utf;
-import ebmusv2;
 import misc;
-import packs;
 import structs;
 import help;
 import brr;
-import loadrom;
-import metadata;
 import play;
 import song;
-import win32.bgmlist;
 import win32.dialogs;
 import win32.handles;
 import win32.misc;
@@ -41,8 +36,6 @@ enum {
 }
 
 __gshared structs.song cur_song;
-__gshared ubyte[3] packs_loaded = [ 0xFF, 0xFF, 0xFF ];
-__gshared ptrdiff_t current_block = -1;
 __gshared song_state pattop_state, state;
 __gshared int octave = 2;
 __gshared ptrdiff_t midiDevice = -1;
@@ -326,78 +319,122 @@ void import_nspc() {
 	}
 }
 
-void export_() nothrow {
-	block *b = save_cur_song_to_pack();
-	if (!b) {
-		MessageBox2("No song loaded", "Export", MB_ICONEXCLAMATION);
+void export_() {
+	if (cur_song.order_length < 1) {
+		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
 		return;
 	}
+	const data = spc[cur_song.address .. cur_song.address + compile_song(&cur_song)];
 
 	string file = saveFilePrompt("EarthBound Music files (*.ebm)\0*.ebm\0", "ebm");
-	if (!file) return;
+	if (file == "") return;
 
-	FILE *f = fopen(file.toStringz, "wb");
-	if (!f) {
-		MessageBox2(strerror(errno).fromStringz, "Export", MB_ICONEXCLAMATION);
-		return;
-	}
-	fwrite(b, 4, 1, f);
-	fwrite(b.data, b.size, 1, f);
-	fclose(f);
+	auto f = File(file, "wb");
+	const header = [cast(ushort)data.length, cast(ushort)cur_song.address];
+	f.rawWrite(header);
+	f.rawWrite(data);
 }
 
 private immutable blankSPC = cast(immutable(ubyte)[])import("blank.spc");
 
-static void export_spc() nothrow {
+static void export_spc() {
 	if (cur_song.order_length < 1) {
 		MessageBox2("No song loaded.", "Export SPC", MB_ICONEXCLAMATION);
-	} else {
-		string file = saveFilePrompt("SPC files (*.spc)\0*.spc\0", "spc");
-		if (file) {
-			FILE *f = fopen(file.toStringz, "wb");
-			if (!f) {
-				MessageBox2(strerror(errno).fromStringz, "Export SPC", MB_ICONEXCLAMATION);
-			} else {
-				const spc_size = blankSPC.length;
-				const WORD header_size = 0x100;
-				const WORD footer_size = 0x100;
+		return;
+	}
+	string file = saveFilePrompt("SPC files (*.spc)\0*.spc\0", "spc");
+	if (!file) {
+		return;
+	}
+	auto f = File(file, "wb");
+	const spc_size = blankSPC.length;
+	const WORD header_size = 0x100;
+	const WORD footer_size = 0x100;
 
-				// Copy blank SPC to byte array
-				ubyte* new_spc = cast(ubyte*)malloc(spc_size);
-				new_spc[0 .. spc_size] = blankSPC;
+	// Copy blank SPC to byte array
+	ubyte[] new_spc = new ubyte[](spc_size);
+	new_spc[0 .. spc_size] = blankSPC;
 
-				// Copy packs/blocks to byte array
-				for (int pack_ = 0; pack_ < 3; pack_++) {
-					if (packs_loaded[pack_] < NUM_PACKS) {
-						pack *p = load_pack(packs_loaded[pack_]);
-						for (int block_ = 0; block_ < p.block_count; block_++) {
-							block *b = &p.blocks[block_];
+	// Copy packs/blocks to byte array
+	ushort[2][4] usedRanges;
+	usedRanges[0] = [ushort(0x500), ushort(0x468B)]; // program
 
-							// Copy block to new_spc
-							const int size = min(b.size, spc_size - b.spc_address - footer_size);
-							memcpy(new_spc + header_size + b.spc_address, b.data, size);
+	infof("Saving program to %04X (%04X)", usedRanges[0][0], usedRanges[0][1]);
 
-							if (size > spc_size - footer_size) {
-								assumeWontThrow(infof("SPC pack %d block %d too large.\n", packs_loaded[pack_], block_));
-							}
-						}
-					}
-				}
+	const savedAddress = cur_song.address;
+	cur_song.address = 0x4700;
+	scope(exit) cur_song.address = savedAddress;
+	const sequence = getSequenceData();
+	usedRanges[1] = [ushort(0x4700), cast(ushort)(0x4700 + sequence.length)];
+	infof("Saving sequence to %04X (%04X)", usedRanges[1][0], usedRanges[1][1]);
+	/// write instruments
 
-				// Set pattern repeat location
-				const WORD repeat_address = cast(WORD)(cur_song.address + 0x2*cur_song.repeat_pos);
-				memcpy(new_spc + 0x140, &repeat_address, 2);
+	new_spc[0x100 + cur_song.address .. 0x100 + cur_song.address + sequence.length] = sequence;
+	auto tmpInstrLocation = cast(ushort)(usedRanges[1][1] + 1);
+	const instruments = getInstrumentData();
+	usedRanges[2] = [tmpInstrLocation, cast(ushort)(tmpInstrLocation + instruments.length)];
+	new_spc[0x100 + tmpInstrLocation .. 0x100 + tmpInstrLocation + instruments.length] = instruments;
+	infof("Saving instruments to %04X (%04X)", usedRanges[2][0], usedRanges[2][1]);
 
-				// Set BGM to load
-				const ubyte bgm = cast(ubyte)(selected_bgm + 1);
-				memcpy(new_spc + 0x1F4, &bgm, 1);
+	/// write samples
 
-				// Save byte array to file
-				fwrite(new_spc, spc_size, 1, f);
-				fclose(f);
-			}
+	const tmpSampleDirectory = cast(ushort)(((usedRanges[2][1] >> 8) + 1) << 8);
+	ushort[2][] sampleDirectoryCopy = sampleDirectory.dup;
+	usedRanges[3] = [tmpSampleDirectory, cast(ushort)(tmpSampleDirectory + sampleDirectoryCopy.length * (ushort[2].sizeof))];
+	infof("Saving sample directory to %04X (%04X)", usedRanges[3][0], usedRanges[3][1]);
+	ushort sampleStart = cast(ushort)(usedRanges[3][1] + 1);
+	size_t sampleOffset;
+	ushort[ushort] sampleMap;
+	foreach (ref samplePair; sampleDirectoryCopy) {
+		if (samplePair[0] == 0 || samplePair[0] == 0xffff) {
+			continue;
+		}
+		if (samplePair[0] !in samples) {
+			continue;
+		}
+		const diff = samplePair[1] - samplePair[0];
+		const sample = samples[samplePair[0]];
+		const orig = samplePair[0];
+		infof("Rewriting %04X to %04X", orig, sampleStart);
+		samplePair[0] = sampleStart;
+		samplePair[1] = cast(ushort)(sampleStart + diff);
+		if (orig !in sampleMap) {
+			infof("%s", sampleMap);
+			sampleMap[orig] = sampleStart;
+			infof("Saving sample data %04X to %04X (%04X)", orig, sampleStart, sampleStart + sample.length);
+			new_spc[0x100 + sampleStart .. 0x100 + sampleStart + sample.length] = sample;
+			sampleStart += sample.length;
 		}
 	}
+	new_spc[0x100 + tmpSampleDirectory .. 0x100 + tmpSampleDirectory + sampleDirectoryCopy.length * (ushort[2].sizeof)] = cast(ubyte[])sampleDirectoryCopy;
+
+
+	// Set pattern repeat location
+	const ushort repeat_address = cast(ushort)(cur_song.address + 0x2*cur_song.repeat_pos);
+	(cast(ushort[])(new_spc[0x140 .. 0x142]))[0] = repeat_address;
+
+	// Set sample directory location
+	new_spc[0x62A] = tmpSampleDirectory >> 8;
+
+	// Set instrument location
+	new_spc[0xA72] = tmpInstrLocation & 0xFF;
+	new_spc[0xA75] = tmpInstrLocation >> 8;
+
+	// Set BGM to load
+	const ubyte bgm = 1;
+	new_spc[0x1F4] = bgm;
+
+	// Save byte array to file
+	f.rawWrite(new_spc);
+}
+private ubyte[] getInstrumentData() nothrow {
+	return spc[inst_base .. inst_base + 6 * 128];
+}
+private ubyte[] getSampleDirectory() nothrow {
+	return cast(ubyte[])sampleDirectory;
+}
+private ubyte[] getSequenceData() nothrow {
+	return spc[cur_song.address .. cur_song.address + compile_song(&cur_song)];
 }
 static void export_nspc() {
 	if (cur_song.order_length < 1) {
@@ -418,38 +455,11 @@ static void export_nspc() {
 	writer.header.volumeTable = VolumeTable.hal1;
 	writer.header.releaseTable = ReleaseTable.hal1;
 	// instruments
-	writer.packs ~= Pack(cast(ushort)inst_base, spc[inst_base .. inst_base + 4 * 128]);
+	writer.packs ~= Pack(cast(ushort)inst_base, getInstrumentData());
 	// samples
-	writer.packs ~= Pack(cast(ushort)sample_ptr_base, spc[sample_ptr_base .. maxSamplePosition + 1]);
+	//writer.packs ~= Pack(cast(ushort)sample_ptr_base, getSampleData());
 	// song
-	block *b = save_cur_song_to_pack();
-	const buf = b.data[0 .. b.size];
-
-	writer.packs ~= Pack(cast(ushort)b.spc_address, buf);
+	writer.packs ~= Pack(cast(ushort)cur_song.address, getSequenceData());
 	//writer.tags[] = ;
 	writer.toBytes(file);
-}
-
-BOOL save_all_packs() nothrow {
-	char[60] buf;
-	save_cur_song_to_pack();
-	int packs = 0;
-	BOOL success = TRUE;
-	for (int i = 0; i < NUM_PACKS; i++) {
-		if (inmem_packs[i].status & IPACK_CHANGED) {
-			BOOL saved = save_pack(i);
-			success &= saved;
-			packs += saved;
-		}
-	}
-	if (packs) {
-		SendMessageA(tab_hwnd[current_tab], WM_PACKS_SAVED, 0, 0);
-		MessageBox2(assumeWontThrow(sformat(buf[], "%d pack(s) saved", packs)), "Save", MB_OK);
-	}
-	try {
-		save_metadata();
-	} catch(Exception e) {
-		MessageBox2(e.msg, filename.fromStringz.toUTF8, MB_ICONEXCLAMATION);
-	}
-	return success;
 }

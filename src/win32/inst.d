@@ -11,7 +11,6 @@ import std.exception;
 import std.experimental.logger;
 import std.string;
 import std.utf;
-import ebmusv2;
 import win32.ctrltbl;
 import main;
 import structs;
@@ -108,7 +107,7 @@ static void note_on(int note, int velocity) nothrow {
 	draw_square(note, cast(HBRUSH)(COLOR_HIGHLIGHT + 1));
 }
 
-extern(Windows) private void MidiInProc(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
+private void MidiInProc(HMIDIIN handle, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2) {
 	if (wMsg == MIM_DATA)
 	{
 		ubyte
@@ -138,7 +137,7 @@ extern(Windows) private void MidiInProc(HMIDIIN handle, UINT wMsg, DWORD_PTR dwI
 
 __gshared private WNDPROC ListBoxWndProc;
 // Custom window procedure for the instrument ListBox
-extern(Windows) private LRESULT InstListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+private LRESULT InstListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_KEYDOWN && !(lParam & (1 << 30))) {
 		int note = note_from_key(cast(int)wParam, false);
 		if (note >= 0 && note < 0x48)
@@ -154,7 +153,7 @@ extern(Windows) private LRESULT InstListWndProc(HWND hWnd, UINT uMsg, WPARAM wPa
 	return CallWindowProc(ListBoxWndProc, hWnd, uMsg, wParam, lParam);
 }
 
-extern(Windows) LRESULT InstTestWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT InstTestWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE: insttest = hWnd; break;
 	case WM_ERASEBKGND: {
@@ -199,7 +198,7 @@ immutable instrumentConfigHeaders = [
 	ListHeader("Tuning", 50),
 ];
 
-extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_CREATE: {
 		prev_chmask = chmask;
@@ -231,8 +230,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 		// Insert a custom window procedure on the instrument list, so we
 		// can see WM_KEYDOWN and WM_KEYUP messages for instrument testing.
 		// (LBS_WANTKEYBOARDINPUT doesn't notify on WM_KEYUP)
-		ListBoxWndProc = cast(WNDPROC)SetWindowLongPtrA(instlist, GWLP_WNDPROC,
-			cast(LONG_PTR)&InstListWndProc);
+		ListBoxWndProc = cast(WNDPROC)SetWindowLongPtrA(instlist, GWLP_WNDPROC, cast(LONG_PTR)&wrappedWindowsCallback!InstListWndProc);
 
 		LV_ITEMA lvi;
 		lvi.iItem = assumeWontThrow(ListView_GetItemCount(samplist));
@@ -315,7 +313,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 		SendMessageA(cb, CB_SETCURSEL, midiDevice + 1, 0);
 		closeMidiInDevice();
-		openMidiInDevice(cast(int)midiDevice, &MidiInProc);
+		openMidiInDevice(cast(int)midiDevice, &wrappedWindowsCallback!MidiInProc);
 
 		break;
 	}
@@ -326,7 +324,7 @@ extern(Windows) LRESULT InstrumentsWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, 
 			if (action == CBN_SELCHANGE) {
 				midiDevice = SendMessageA(cast(HWND)lParam, CB_GETCURSEL, 0, 0) - 1;
 				closeMidiInDevice();
-				openMidiInDevice(cast(int)midiDevice, &MidiInProc);
+				openMidiInDevice(cast(int)midiDevice, &wrappedWindowsCallback!MidiInProc);
 			} else if (action == CBN_CLOSEUP) {
 				SetFocus(instlist);
 			}

@@ -2,7 +2,6 @@ module win32.help;
 
 import core.sys.windows.windows;
 import std.string;
-import ebmusv2;
 import main;
 import help;
 import win32.fonts;
@@ -10,7 +9,7 @@ import win32.handles;
 
 enum IDC_HELPTEXT = 1;
 
-extern(Windows) ptrdiff_t CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+ptrdiff_t CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 		case WM_CTLCOLORSTATIC:
 			return cast(LRESULT)GetSysColorBrush(COLOR_WINDOW);
@@ -33,7 +32,7 @@ extern(Windows) ptrdiff_t CodeListWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, L
 	return 0;
 }
 
-extern(Windows) ptrdiff_t AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+ptrdiff_t AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	if (uMsg == WM_COMMAND && LOWORD(wParam) == IDOK) {
 		EndDialog(hWnd, IDOK);
 		return TRUE;

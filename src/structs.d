@@ -94,21 +94,3 @@ struct block {
 	ushort size, spc_address;
 	ubyte *data; // only used for inmem packs
 };
-
-// rom_packs contain info about the pack as it stands in the ROM file
-// .status is one of these constants:
-enum RPACK_ORIGINAL = 0;
-enum RPACK_MODIFIED = 1;
-enum RPACK_INVALID = 2;
-enum RPACK_SAVED = 3;
-
-// inmem_packs contain info about the pack as it currently is in the editor
-// .status is a bitmask of these constants:
-enum IPACK_INMEM = 1;	// blocks[i].data valid if set
-enum IPACK_CHANGED = 2;
-struct pack {
-	int start_address;
-	int status;	// See constants above
-	int block_count;
-	block *blocks;
-};

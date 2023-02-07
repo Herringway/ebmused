@@ -2,8 +2,6 @@ module win32.id;
 
 enum IDM_MENU = 1;
 enum IDM_CONTEXTMENU = 2;
-enum ID_OPEN = 100;
-enum ID_SAVE_ALL = 101;
 enum ID_CLOSE = 102;
 enum ID_IMPORT = 103;
 enum ID_IMPORT_SPC = 104;

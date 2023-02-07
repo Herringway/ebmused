@@ -8,7 +8,6 @@ import core.sys.windows.windows;
 import core.sys.windows.commdlg;
 import core.sys.windows.commctrl;
 
-import win32.bgmlist;
 import win32.dialogs;
 import win32.fonts;
 import win32.handles;
@@ -19,16 +18,15 @@ import win32.misc;
 import win32.sound;
 import win32.tracker;
 import brr;
-import ebmusv2;
-import loadrom;
 import main;
 import misc;
-import packs;
 import play;
+import song;
 import structs;
 
 import std.exception;
 import std.experimental.logger;
+import std.stdio;
 import std.string;
 
 version(win32):
@@ -59,40 +57,33 @@ void tab_selected(int new_) {
 		0, scale_y(25), rc.right, rc.bottom - scale_y(25),
 		hwndMain, NULL, hinstance, NULL);
 
-	SendMessageA(tab_hwnd[new_], rom.isOpen ? WM_ROM_OPENED : WM_ROM_CLOSED, 0, 0);
+	//SendMessageA(tab_hwnd[new_], rom.isOpen ? WM_ROM_OPENED : WM_ROM_CLOSED, 0, 0);
 	SendMessageA(tab_hwnd[new_], cur_song.order_length ? WM_SONG_LOADED : WM_SONG_NOT_LOADED, 0, 0);
 }
 
-private void import_() nothrow {
-	if (packs_loaded[2] >= NUM_PACKS) {
-		MessageBox2("No song pack selected", "Import", MB_ICONEXCLAMATION);
-		return;
-	}
-
+private void import_() {
 	string file = openFilePrompt("EarthBound Music files (*.ebm)\0*.ebm\0All Files\0*.*\0");
 	if (file == "") return;
 
-	FILE *f = fopen(file.toStringz, "rb");
-	auto size = filelength(f);
-	if (!f) {
-		MessageBox2(strerror(errno).fromStringz, "Import", MB_ICONEXCLAMATION);
-		return;
-	}
+	auto f = File(file, "rb");
+	auto size = f.size;
 
-	block b;
-	if (!fread(&b, 4, 1, f) || b.spc_address + b.size > 0x10000 || size != 4 + b.size) {
-		MessageBox2("File is not an EBmused export", "Import", MB_ICONEXCLAMATION);
-		goto err1;
+	block[1] bh;
+	f.rawRead(bh[]);
+	const b = bh[0];
+	infof("%s - %s", size, 4 + b.size);
+	if ((b.spc_address + b.size > 0x10000) || (size != 4 + b.size)) {
+		throw new EbmusedWarningException("File is not an EBmused export", "Import");
 	}
-	b.data = cast(ubyte*)malloc(b.size);
-	fread(b.data, b.size, 1, f);
-	new_block(&b);
+	auto data = new ubyte[](b.size);
+	f.rawRead(data);
+	spc[b.spc_address .. b.spc_address + b.size] = data;
+	decompile_song(&cur_song, b.spc_address, 0xFFFF);
+	initialize_state();
 	SendMessageA(tab_hwnd[current_tab], WM_SONG_IMPORTED, 0, 0);
-err1:
-	fclose(f);
 }
 
-extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case 0x3BB: case 0x3BC: case 0x3BD: // MM_WOM_OPEN, CLOSE, DONE
 		winmm_message(uMsg);
@@ -117,35 +108,20 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	case WM_COMMAND: {
 		WORD id = LOWORD(wParam);
 		switch (id) {
-		case ID_OPEN: {
-			string file = openFilePrompt("SNES ROM files (*.smc, *.sfc)\0*.smc;*.sfc\0All Files\0*.*\0");
-			try {
-				if ((file != "") && open_rom(file, ofn.Flags & OFN_READONLY)) {
-					SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
-					SendMessageA(tab_hwnd[current_tab], WM_ROM_OPENED, 0, 0);
-				}
-			} catch (Exception e) {
-				MessageBox2(e.msg, "Could not open ROM", MB_ICONERROR);
-			}
-			break;
-		}
-		case ID_SAVE_ALL:
-			save_all_packs();
-			break;
 		case ID_CLOSE:
-			if (!handleErrorsUI(close_rom(), true)) break;
+			//if (!handleErrorsUI(close_rom(), true)) break;
 			SendMessageA(tab_hwnd[current_tab], WM_ROM_CLOSED, 0, 0);
 			SetWindowTextW(hWnd, "EarthBound Music Editor");
 			break;
-		case ID_IMPORT: import_(); break;
+		case ID_IMPORT: handleErrorsUI(import_()); break;
 		case ID_IMPORT_SPC: handleErrorsUI(import_spc()); break;
 		case ID_IMPORT_NSPC: handleErrorsUI(import_nspc()); break;
-		case ID_EXPORT: export_(); break;
-		case ID_EXPORT_SPC: export_spc(); break;
+		case ID_EXPORT: handleErrorsUI(export_()); break;
+		case ID_EXPORT_SPC: handleErrorsUI(export_spc()); break;
 		case ID_EXPORT_NSPC: handleErrorsUI(export_nspc()); break;
 		case ID_EXIT: DestroyWindow(hWnd); break;
 		case ID_OPTIONS: {
-			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_OPTIONS), hWnd, &OptionsDlgProc);
+			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_OPTIONS), hWnd, &wrappedWindowsCallback!OptionsDlgProc);
 			break;
 		}
 		case ID_CUT:
@@ -195,7 +171,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 				NULL, NULL, hinstance, NULL);
 			break;
 		case ID_ABOUT: {
-			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_ABOUT), hWnd, &AboutDlgProc);
+			DialogBoxA(hinstance, MAKEINTRESOURCEA(IDD_ABOUT), hWnd, &wrappedWindowsCallback!AboutDlgProc);
 			break;
 		}
 		default: assumeWontThrow(infof("Command %d not yet implemented\n", id)); break;
@@ -212,7 +188,7 @@ extern(Windows) LRESULT MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		break;
 	}
 	case WM_CLOSE:
-		if (!handleErrorsUI(close_rom(), true)) break;
+		//if (!handleErrorsUI(close_rom(), true)) break;
 		DestroyWindow(hWnd);
 		break;
 	case WM_DESTROY:
@@ -238,7 +214,7 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
 	MSG msg;
 
 	wc.style         = 0;
-	wc.lpfnWndProc   = &MainWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!MainWndProc;
 	wc.cbClsExtra    = 0;
 	wc.cbWndExtra    = 0;
 	wc.hInstance     = hInstance;
@@ -256,23 +232,23 @@ extern(Windows) ptrdiff_t WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
 		RegisterClassW(&wc);
 	}
 
-	wc.lpfnWndProc   = &InstTestWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!InstTestWndProc;
 	wc.lpszClassName = "ebmused_insttest";
 	RegisterClassW(&wc);
-	wc.lpfnWndProc   = &StateWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!StateWndProc;
 	wc.lpszClassName = "ebmused_state";
 	RegisterClassW(&wc);
 
 	wc.hbrBackground = NULL;
-	wc.lpfnWndProc   = &CodeListWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!CodeListWndProc;
 	wc.lpszClassName = "ebmused_codelist";
 	RegisterClassW(&wc);
-	wc.lpfnWndProc   = &OrderWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!OrderWndProc;
 	wc.lpszClassName = "ebmused_order";
 	RegisterClassW(&wc);
 
 	wc.style         = CS_HREDRAW;
-	wc.lpfnWndProc   = &TrackerWndProc;
+	wc.lpfnWndProc   = &wrappedWindowsCallback!TrackerWndProc;
 	wc.lpszClassName = "ebmused_tracker";
 	RegisterClassW(&wc);
 

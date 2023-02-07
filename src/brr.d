@@ -13,7 +13,7 @@ enum {
 
 __gshared sample[128] samp;
 
-ushort maxSamplePosition = 0;
+ubyte[][ushort] samples;
 
 ushort sample_ptr_base = 0x6C00;
 
@@ -121,7 +121,6 @@ void decode_samples(const(ubyte)* ptrtable) {
 			continue;
 
 		int end = start + length;
-		maxSamplePosition = max(maxSamplePosition, cast(ushort)end);
 		sa.length = (length / BRR_BLOCK_SIZE) * 16;
 		// The LOOP bit only matters for the last brr block
 		if (spc[start + length - BRR_BLOCK_SIZE] & BRR_FLAG_LOOP) {
@@ -200,6 +199,7 @@ void decode_samples(const(ubyte)* ptrtable) {
 
 		// Put an extra sample at the end for easier interpolation
 		*p = sa.loop_len != 0 ? sa.data[sa.length - sa.loop_len] : 0;
+		samples[cast(ushort)start] = spc[start .. end];
 	}
 }
 

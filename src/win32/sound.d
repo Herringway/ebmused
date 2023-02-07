@@ -6,7 +6,6 @@ import core.sys.windows.windows;
 import core.sys.windows.mmsystem;
 import std.string;
 import win32.id;
-import ebmusv2;
 import structs;
 import win32.misc;
 import main;
@@ -87,7 +86,7 @@ void winmm_message(uint uMsg) nothrow {
 	}
 }
 
-extern(Windows) ptrdiff_t OptionsDlgProc(HWND hWnd, uint uMsg, WPARAM wParam, LPARAM lParam) nothrow {
+ptrdiff_t OptionsDlgProc(HWND hWnd, uint uMsg, WPARAM wParam, LPARAM lParam) nothrow {
 	switch (uMsg) {
 	case WM_INITDIALOG:
 		SetDlgItemInt(hWnd, IDC_RATE, mixrate, FALSE);

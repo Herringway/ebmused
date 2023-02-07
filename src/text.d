@@ -3,7 +3,6 @@ import core.stdc.stdio;
 import core.stdc.stdlib;
 import std.format;
 import std.string;
-import ebmusv2;
 import structs;
 import misc;
 import parser;
@@ -113,7 +112,8 @@ int text_length(ubyte *start, ubyte *end) {
 }
 
 //// convert a track to text. size must not be 0
-void track_to_text(char *out_, ubyte *track, int size) nothrow {
+void track_to_text(char[] out_, ubyte *track, int size) nothrow {
+	out_[$ - 1] = '\0';
 	for (int len, pos = 0; pos < size; pos += len) {
 		int byte_ = track[pos];
 
@@ -121,20 +121,30 @@ void track_to_text(char *out_, ubyte *track, int size) nothrow {
 
 		if (byte_ == 0xEF) {
 			int sub = track[pos+1] | track[pos+2] << 8;
-			out_ += sprintf(out_, "*%d,%d", sub, track[pos + 3]);
+			out_ = out_[sprintf(&out_[0], "*%d,%d", sub, track[pos + 3]) .. $];
 		} else {
 			int i;
-			if (byte_ < 0x80 || byte_ >= 0xE0) *out_++ = '[';
+			if (byte_ < 0x80 || byte_ >= 0xE0) {
+				out_[0] = '[';
+				out_ = out_[1 .. $];
+			}
 			for (i = 0; i < len; i++) {
 				int byte2_ = track[pos + i];
-				if (i != 0) *out_++ = ' ';
-				*out_++ = "0123456789ABCDEF"[byte2_ >> 4];
-				*out_++ = "0123456789ABCDEF"[byte2_ & 15];
+				if (i != 0) {
+					out_[0] = ' ';
+					out_ = out_[1 .. $];
+				}
+				out_[0] = "0123456789ABCDEF"[byte2_ >> 4];
+				out_[1] = "0123456789ABCDEF"[byte2_ & 15];
+				out_ = out_[2 .. $];
 			}
-			if (byte_ < 0x80 || byte_ >= 0xE0) *out_++ = ']';
+			if (byte_ < 0x80 || byte_ >= 0xE0) {
+				out_[0] = ']';
+				out_ = out_[1 .. $];
+			}
 		}
 
-		*out_++ = ' ';
+		out_[0] = ' ';
+		out_ = out_[1 .. $];
 	}
-	(--out_)[0] = '\0';
 }
